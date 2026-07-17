@@ -12,17 +12,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements first for better Docker layer caching
+# Copy requirements
 COPY requirements.txt .
 
-# Upgrade pip and install Python dependencies
+# Install Python dependencies
 RUN pip install --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
-# Copy the application
+# Copy application code
 COPY . .
 
-# Expose the application port
+# Expose application port
 EXPOSE 8000
 
 # Start FastAPI
