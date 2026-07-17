@@ -54,13 +54,13 @@ export const AuthProvider = ({ children }) => {
 
   const signIn = async (email, password) => {
     try {
-      const formData = new URLSearchParams()
-      formData.append('username', email)
-      formData.append('password', password)
-
-      const response = await axios.post(`${API_URL}/auth/login`, formData, {
+      // Send JSON payload instead of form data
+      const response = await axios.post(`${API_URL}/auth/login`, {
+        email,
+        password
+      }, {
         headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
+          'Content-Type': 'application/json',
         },
       })
 
@@ -71,6 +71,7 @@ export const AuthProvider = ({ children }) => {
       
       return { user: profile, session: { access_token } }
     } catch (error) {
+      console.error('Login error:', error.response?.data || error.message)
       throw new Error(error.response?.data?.detail || 'Login failed')
     }
   }
