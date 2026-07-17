@@ -37,12 +37,8 @@ class R2StorageClient:
             file_path = self.local_storage_path / unique_filename
             with open(file_path, 'wb') as f:
                 f.write(file_data)
-            
-            # Get backend URL from settings
-            backend_url = settings.BACKEND_URL
-            
             # Return full URL with backend host
-            return f"{backend_url}/uploads/{unique_filename}"
+            return f"http://localhost:8000/uploads/{unique_filename}"
         else:
             # Upload to R2
             async with self.session.client(
