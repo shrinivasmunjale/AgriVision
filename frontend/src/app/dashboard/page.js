@@ -15,9 +15,8 @@ export default function DashboardPage() {
   const router = useRouter()
 
   useEffect(() => {
-    if (!loading && !user) {
-      router.push('/auth/login')
-    }
+    // Allow viewing dashboard without login
+    // Redirect to login only when trying to access protected features
   }, [user, loading, router])
 
   const { data: predictions, isLoading } = useQuery({
@@ -30,7 +29,7 @@ export default function DashboardPage() {
     enabled: !!user,
   })
 
-  if (loading || !user) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
