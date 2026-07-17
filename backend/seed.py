@@ -114,32 +114,28 @@ async def seed_data():
                 name="Copper Fungicide",
                 active_ingredient="Copper hydroxide",
                 dosage="2-4 tablespoons per gallon",
-                application_method="Foliar spray every 7-10 days",
-                safety_precautions="Wear gloves and mask, avoid spray drift"
+                application_method="Foliar spray every 7-10 days"
             ),
             Pesticide(
                 id=2,
                 name="Chlorothalonil",
                 active_ingredient="Chlorothalonil 75%",
                 dosage="2 tablespoons per gallon",
-                application_method="Spray foliage thoroughly every 7-14 days",
-                safety_precautions="Highly toxic, wear protective equipment"
+                application_method="Spray foliage thoroughly every 7-14 days"
             ),
             Pesticide(
                 id=3,
                 name="Mancozeb",
                 active_ingredient="Mancozeb 75% WP",
                 dosage="2.5 tablespoons per gallon",
-                application_method="Apply as protective spray before disease appears",
-                safety_precautions="Avoid contact with skin, wash hands after use"
+                application_method="Apply as protective spray before disease appears"
             ),
             Pesticide(
                 id=4,
                 name="Bacillus subtilis",
                 active_ingredient="Bacillus subtilis strain",
                 dosage="1-2 teaspoons per gallon",
-                application_method="Spray every 7-14 days as preventative",
-                safety_precautions="Organic option, safe for beneficial insects"
+                application_method="Spray every 7-14 days as preventative"
             ),
         ]
         
@@ -156,24 +152,21 @@ async def seed_data():
                 name="NPK 10-10-10",
                 composition="Nitrogen 10%, Phosphorus 10%, Potassium 10%",
                 dosage="1-2 tablespoons per plant every 2-3 weeks",
-                application_stage="Vegetative and flowering stage",
-                benefits="Balanced nutrition for overall plant health"
+                application_stage="Vegetative and flowering stage"
             ),
             Fertilizer(
                 id=2,
                 name="Calcium Nitrate",
                 composition="Calcium 19%, Nitrogen 15.5%",
                 dosage="1 tablespoon per gallon water, apply as foliar spray",
-                application_stage="During fruit development",
-                benefits="Prevents blossom end rot, strengthens cell walls"
+                application_stage="During fruit development"
             ),
             Fertilizer(
                 id=3,
                 name="Fish Emulsion",
                 composition="Nitrogen 5%, Phosphorus 2%, Potassium 2%",
                 dosage="2-3 tablespoons per gallon, apply every 2 weeks",
-                application_stage="Throughout growing season",
-                benefits="Organic fertilizer, improves soil health"
+                application_stage="Throughout growing season"
             ),
         ]
         
