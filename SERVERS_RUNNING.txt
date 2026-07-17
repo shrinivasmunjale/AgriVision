@@ -1,0 +1,123 @@
+================================================================================
+                    ✅ AGRIVISION AI SERVERS RUNNING
+================================================================================
+
+BACKEND STATUS: ✅ RUNNING
+  URL:      http://localhost:8000
+  Status:   Application startup complete
+  Health:   {"status":"healthy","project":"AgriVision AI","version":"1.0.0"}
+  API Docs: http://localhost:8000/docs
+  
+FRONTEND STATUS: ✅ RUNNING
+  URL:      http://localhost:3000
+  Status:   Ready in 2.1s
+  Next.js:  14.2.5
+  
+================================================================================
+                           HOW TO ACCESS
+================================================================================
+
+1. OPEN YOUR BROWSER
+   Navigate to: http://localhost:3000
+
+2. LOGIN WITH TEST ACCOUNT
+   Email:    farmer@example.com
+   Password: farmer123
+   
+   OR
+   
+   Email:    admin@agrivision.com
+   Password: admin123
+
+3. VIEW API DOCUMENTATION
+   Navigate to: http://localhost:8000/docs
+
+================================================================================
+                           FEATURES TO TEST
+================================================================================
+
+✓ Dashboard       - View overview and statistics
+✓ Scan Leaf       - Upload an image for disease detection
+✓ History         - View all past predictions
+✓ Profile         - Check and update your profile
+✓ Admin Panel     - Manage users, diseases (admin only)
+✓ PDF Reports     - Download detailed analysis reports
+
+================================================================================
+                           TO STOP SERVERS
+================================================================================
+
+Press Ctrl+C in the terminal windows running the servers
+
+Or close the terminal windows
+
+================================================================================
+                           TO RESTART SERVERS
+================================================================================
+
+Run: .\start-dev.bat
+
+This will start both backend and frontend servers again
+
+================================================================================
+                           TROUBLESHOOTING
+================================================================================
+
+IF BACKEND NOT RESPONDING:
+  1. Check backend terminal for errors
+  2. Verify database file exists: backend\agrivision.db
+  3. Check .env file: backend\.env
+
+IF FRONTEND NOT LOADING:
+  1. Check frontend terminal for errors
+  2. Clear browser cache (Ctrl+Shift+Delete)
+  3. Try incognito mode
+
+IF PORTS IN USE:
+  Find process: netstat -ano | findstr :8000
+  Kill process: taskkill /PID <number> /F
+
+================================================================================
+                           CONFIGURATION
+================================================================================
+
+BACKEND CONFIG: backend\.env
+  - Database: sqlite+aiosqlite:///./agrivision.db
+  - JWT Secret: (configured)
+  - Storage: Local mode (uploads/ folder)
+  - ML: Mock mode (for development)
+
+FRONTEND CONFIG: frontend\.env.local
+  - API URL: http://localhost:8000
+  - Supabase: Placeholder (not required)
+
+================================================================================
+                           MOCK MODE
+================================================================================
+
+The application is running in MOCK MODE:
+  ✓ Database: SQLite (local file)
+  ✓ Storage: Local filesystem (uploads/ folder)
+  ✓ ML Inference: Mock predictions
+  ✓ Authentication: Local JWT tokens
+
+This means you can develop and test WITHOUT external services!
+
+================================================================================
+                           NEXT STEPS
+================================================================================
+
+1. Open http://localhost:3000 in your browser
+2. Login with test credentials
+3. Test the features
+4. Check the code in:
+   - backend/app/ (API endpoints and services)
+   - frontend/src/ (React components and pages)
+
+================================================================================
+
+🎉 Both servers are running successfully!
+
+Open your browser and start testing: http://localhost:3000
+
+================================================================================

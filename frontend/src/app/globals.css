@@ -1,0 +1,58 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-primary: #0B2B1E;
+  --color-primary-600: #1B4332;
+  --color-primary-500: #297B5C;
+  --color-primary-400: #34A65F;
+  --color-primary-100: #A2F4C8;
+  --color-accent: #DDA15E;
+
+  --color-bg-canvas: #1E1F22;
+  --color-bg-base: #202124;
+  --color-bg-surface: #F8F9FA;
+  --color-bg-card: #2A2E2B;
+  --color-border-subtle: #3A3F3C;
+  --color-border-light: #E1E3E1;
+  --color-text-primary: #F5F7F6;
+  --color-text-secondary: #9AA39D;
+  --color-text-inverse: #14171A;
+  --color-disabled: #767D79;
+
+  --color-success-bg: #A2F4C8;
+  --color-success-text: #0B3D24;
+  --color-danger-bg: #FFDAD6;
+  --color-danger-text: #7A1F17;
+  --color-warning-bg: #FBD2CE;
+  --color-warning-text: #7A3A17;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+
+  --radius-sm: 12px;
+  --radius-md: 16px;
+  --radius-lg: 20px;
+  --radius-pill: 999px;
+}
+
+@layer base {
+  * {
+    @apply border-border-subtle;
+  }
+  body {
+    @apply bg-surface-base text-text-primary;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
