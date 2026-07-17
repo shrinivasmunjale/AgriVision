@@ -38,7 +38,7 @@ class R2StorageClient:
             with open(file_path, 'wb') as f:
                 f.write(file_data)
             # Return full URL with backend host
-            return f"http://localhost:8000/uploads/{unique_filename}"
+            return f"https://YOUR-BACKEND-NAME.onrender.com/uploads/{unique_filename}"
         else:
             # Upload to R2
             async with self.session.client(
