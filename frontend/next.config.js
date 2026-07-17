@@ -1,5 +1,8 @@
 /** @type {import('next').NextConfig} */
+const path = require('path')
+
 const nextConfig = {
+  reactStrictMode: true,
   images: {
     domains: ['images.unsplash.com', 'mock-storage.agrivision.ai', 'localhost'],
     remotePatterns: [
@@ -13,12 +16,20 @@ const nextConfig = {
       },
     ],
   },
-  // Ensure Vercel resolves paths correctly
-  webpack: (config) => {
+  // Ensure proper module resolution for Vercel
+  webpack: (config, { isServer }) => {
     config.resolve.alias = {
       ...config.resolve.alias,
-      '@': require('path').resolve(__dirname, 'src'),
+      '@': path.resolve(__dirname, 'src'),
+      '@/components': path.resolve(__dirname, 'src/components'),
+      '@/contexts': path.resolve(__dirname, 'src/contexts'),
+      '@/lib': path.resolve(__dirname, 'src/lib'),
+      '@/app': path.resolve(__dirname, 'src/app'),
     }
+    
+    // Ensure proper module resolution
+    config.resolve.extensions = ['.js', '.jsx', '.json']
+    
     return config
   },
 }

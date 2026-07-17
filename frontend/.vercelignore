@@ -1,0 +1,9 @@
+# Don't ignore anything critical for builds
+# Only ignore development files
+node_modules
+.next
+out
+.DS_Store
+*.log
+.env*.local
+!.env.local.example
