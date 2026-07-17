@@ -13,6 +13,9 @@ class Settings(BaseSettings):
 
     # Database Configuration
     DATABASE_URL: str
+    
+    # Backend URL for image serving (defaults to localhost for development)
+    BACKEND_URL: str = "http://localhost:8000"
 
     # Authentication (Supabase)
     SUPABASE_JWT_SECRET: str
