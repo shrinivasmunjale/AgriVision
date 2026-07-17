@@ -63,10 +63,123 @@ async def seed_data():
         print("   - admin@test.com / password123")
         print("   - expert@test.com / password123")
 
-        # ====================================================
-        # KEEP YOUR EXISTING PESTICIDE, FERTILIZER,
-        # DISEASE SEEDING CODE HERE
-        # ====================================================
+        # -----------------------------
+        # Diseases
+        # -----------------------------
+        diseases = [
+            Disease(
+                id=2,
+                name="Early Blight",
+                description="A fungal disease caused by Alternaria solani affecting tomato plants",
+                symptoms="Dark brown spots with concentric rings on older leaves, yellowing and leaf drop",
+                causes="Warm humid weather, poor air circulation, overhead watering",
+                severity_level="Medium"
+            ),
+            Disease(
+                id=3,
+                name="Late Blight",
+                description="A devastating disease caused by Phytophthora infestans",
+                symptoms="Water-soaked lesions on leaves and stems, white mold growth, rapid plant death",
+                causes="Cool moist weather, spores spread by wind and rain",
+                severity_level="High"
+            ),
+            Disease(
+                id=4,
+                name="Bacterial Spot",
+                description="Bacterial disease caused by Xanthomonas species",
+                symptoms="Small dark spots on leaves and fruit, yellow halos around spots",
+                causes="Warm wet conditions, contaminated seeds or transplants",
+                severity_level="Medium"
+            ),
+            Disease(
+                id=5,
+                name="Tomato Mosaic Virus",
+                description="Viral disease causing mosaic pattern on leaves",
+                symptoms="Mottled light and dark green leaf pattern, stunted growth, reduced yield",
+                causes="Transmitted by handling infected plants, contaminated tools",
+                severity_level="High"
+            )
+        ]
+        
+        db.add_all(diseases)
+        await db.commit()
+        print("✅ Diseases seeded successfully")
+
+        # -----------------------------
+        # Pesticides
+        # -----------------------------
+        pesticides = [
+            Pesticide(
+                id=1,
+                name="Copper Fungicide",
+                active_ingredient="Copper hydroxide",
+                dosage="2-4 tablespoons per gallon",
+                application_method="Foliar spray every 7-10 days",
+                safety_precautions="Wear gloves and mask, avoid spray drift"
+            ),
+            Pesticide(
+                id=2,
+                name="Chlorothalonil",
+                active_ingredient="Chlorothalonil 75%",
+                dosage="2 tablespoons per gallon",
+                application_method="Spray foliage thoroughly every 7-14 days",
+                safety_precautions="Highly toxic, wear protective equipment"
+            ),
+            Pesticide(
+                id=3,
+                name="Mancozeb",
+                active_ingredient="Mancozeb 75% WP",
+                dosage="2.5 tablespoons per gallon",
+                application_method="Apply as protective spray before disease appears",
+                safety_precautions="Avoid contact with skin, wash hands after use"
+            ),
+            Pesticide(
+                id=4,
+                name="Bacillus subtilis",
+                active_ingredient="Bacillus subtilis strain",
+                dosage="1-2 teaspoons per gallon",
+                application_method="Spray every 7-14 days as preventative",
+                safety_precautions="Organic option, safe for beneficial insects"
+            ),
+        ]
+        
+        db.add_all(pesticides)
+        await db.commit()
+        print("✅ Pesticides seeded successfully")
+
+        # -----------------------------
+        # Fertilizers
+        # -----------------------------
+        fertilizers = [
+            Fertilizer(
+                id=1,
+                name="NPK 10-10-10",
+                composition="Nitrogen 10%, Phosphorus 10%, Potassium 10%",
+                dosage="1-2 tablespoons per plant every 2-3 weeks",
+                application_stage="Vegetative and flowering stage",
+                benefits="Balanced nutrition for overall plant health"
+            ),
+            Fertilizer(
+                id=2,
+                name="Calcium Nitrate",
+                composition="Calcium 19%, Nitrogen 15.5%",
+                dosage="1 tablespoon per gallon water, apply as foliar spray",
+                application_stage="During fruit development",
+                benefits="Prevents blossom end rot, strengthens cell walls"
+            ),
+            Fertilizer(
+                id=3,
+                name="Fish Emulsion",
+                composition="Nitrogen 5%, Phosphorus 2%, Potassium 2%",
+                dosage="2-3 tablespoons per gallon, apply every 2 weeks",
+                application_stage="Throughout growing season",
+                benefits="Organic fertilizer, improves soil health"
+            ),
+        ]
+        
+        db.add_all(fertilizers)
+        await db.commit()
+        print("✅ Fertilizers seeded successfully")
 
         print("🎉 Database seeding completed successfully.")
 
