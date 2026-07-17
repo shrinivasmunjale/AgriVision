@@ -101,7 +101,15 @@ export default function ScanPage() {
         token
       )
 
-      router.push('/history')
+      // Show success message and stay on page to show results
+      setAnalyzing(false)
+      setFiles([])
+      setPreviews([])
+      
+      // Navigate to history after a short delay to see the success
+      setTimeout(() => {
+        router.push('/history')
+      }, 1000)
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to analyze images')
       setUploading(false)

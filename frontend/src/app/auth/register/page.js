@@ -33,24 +33,15 @@ export default function RegisterPage() {
     setError('')
 
     try {
-      // Sign up with Supabase
+      // Register directly with backend API
       await signUp(formData.email, formData.password, {
-        name: formData.name,
+        full_name: formData.name,
+        role: 'farmer',
+        farm_name: formData.farmName,
+        phone: formData.phone,
       })
 
-      // Get access token
-      const token = await getAccessToken()
-
-      // Register in backend
-      await authAPI.register(
-        {
-          name: formData.name,
-          farm_name: formData.farmName,
-          phone: formData.phone,
-        },
-        token
-      )
-
+      // Redirect to dashboard after successful registration
       router.push('/dashboard')
     } catch (err) {
       setError(err.message || 'Failed to create account')

@@ -83,6 +83,8 @@ export const AuthProvider = ({ children }) => {
         password,
         full_name: metadata?.full_name || '',
         role: metadata?.role || 'farmer',
+        farm_name: metadata?.farm_name || '',
+        phone: metadata?.phone || '',
       })
 
       // After registration, automatically sign in
