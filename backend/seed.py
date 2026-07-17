@@ -23,35 +23,45 @@ async def seed_data():
             return
 
         # -----------------------------
-        # Admin User
+        # Test Users
         # -----------------------------
+        farmer = User(
+            id="farmer-test-id",
+            name="Test Farmer",
+            email="farmer@test.com",
+            hashed_password=get_password_hash("password123"),
+            role="farmer",
+            farm_name="Test Farm",
+            phone="+911234567890",
+        )
+
         admin = User(
-            id="admin-uid-12345",
-            name="Admin Operator",
-            email="admin@agrivision.ai",
-            hashed_password=get_password_hash("admin123"),
-            role="Admin",
-            farm_name="AgriVision Labs",
+            id="admin-test-id",
+            name="Test Admin",
+            email="admin@test.com",
+            hashed_password=get_password_hash("password123"),
+            role="admin",
+            farm_name="AgriVision",
             phone="+919876543210",
         )
 
-        # -----------------------------
-        # Farmer User
-        # -----------------------------
-        farmer = User(
-            id="farmer-uid-67890",
-            name="Ramesh Patil",
-            email="ramesh@agrifarm.com",
-            hashed_password=get_password_hash("farmer123"),
-            role="Farmer",
-            farm_name="Patil Tomato Estate",
+        expert = User(
+            id="expert-test-id",
+            name="Test Expert",
+            email="expert@test.com",
+            hashed_password=get_password_hash("password123"),
+            role="expert",
+            farm_name="AgriVision",
             phone="+919876543211",
         )
 
-        db.add_all([admin, farmer])
+        db.add_all([farmer, admin, expert])
         await db.commit()
 
-        print("✅ Users seeded successfully.")
+        print("✅ Test users seeded successfully:")
+        print("   - farmer@test.com / password123")
+        print("   - admin@test.com / password123")
+        print("   - expert@test.com / password123")
 
         # ====================================================
         # KEEP YOUR EXISTING PESTICIDE, FERTILIZER,

@@ -48,11 +48,14 @@ app.add_middleware(
         "http://localhost:3000",
         "http://localhost:3001",
         "https://agri-vision1.vercel.app",
+        "https://agri-vision1-git-main-shrinivasmunjales-projects.vercel.app",
+        "*"
     ],
     allow_origin_regex=r"https://.*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 uploads_dir = Path("uploads")
