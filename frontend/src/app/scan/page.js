@@ -2,21 +2,26 @@
 
 import { useAuth } from '@/contexts/AuthContext'
 import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { predictionsAPI } from '@/lib/api'
 import Layout from '@/components/Layout'
-import { Upload, X, Loader, AlertCircle } from 'lucide-react'
+import { Upload, X, Loader, AlertCircle, Camera as CameraIcon } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useI18n } from '@/contexts/I18nContext'
 
 export default function ScanPage() {
   const { user, loading, getAccessToken } = useAuth()
   const router = useRouter()
+  const queryClient = useQueryClient()
+  const { t } = useI18n()
   const [files, setFiles] = useState([])
   const [previews, setPreviews] = useState([])
   const [uploading, setUploading] = useState(false)
   const [analyzing, setAnalyzing] = useState(false)
   const [error, setError] = useState('')
   const [dragActive, setDragActive] = useState(false)
+  const cameraInputRef = useRef(null)
 
   useEffect(() => {
     if (!loading && !user) {
@@ -101,21 +106,28 @@ export default function ScanPage() {
         token
       )
 
-      // Show success message and stay on page to show results
       setAnalyzing(false)
       setFiles([])
       setPreviews([])
       
-      // Navigate to history after a short delay to see the success
-      setTimeout(() => {
+      // Invalidate React Query cache so fresh data is immediately displayed without reloading
+      await queryClient.invalidateQueries({ queryKey: ['predictions'] })
+      await queryClient.invalidateQueries({ queryKey: ['all-predictions'] })
+
+      const newPredictions = analyzeResponse.data?.predictions
+      if (newPredictions && newPredictions.length > 0) {
+        // Direct navigation to the newly created prediction's detailed report
+        router.push(`/history/${newPredictions[0].id}`)
+      } else {
         router.push('/history')
-      }, 1000)
+      }
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to analyze images')
       setUploading(false)
       setAnalyzing(false)
     }
   }
+
 
   if (loading || !user) {
     return (
@@ -184,6 +196,27 @@ export default function ScanPage() {
             </p>
           </div>
 
+          {/* Camera capture */}
+          <div className="mt-4 flex flex-col sm:flex-row items-center justify-center gap-3">
+            <input
+              ref={cameraInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              onChange={(e) => handleFileSelect(e.target.files)}
+              className="hidden"
+              disabled={uploading || analyzing}
+            />
+            <button
+              onClick={() => cameraInputRef.current?.click()}
+              disabled={uploading || analyzing}
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-surface-card border border-border-subtle rounded-full font-semibold text-text-primary hover:border-primary-400/50 transition-colors disabled:opacity-50"
+            >
+              <CameraIcon className="w-5 h-5 text-primary-400" />
+              Capture with Camera
+            </button>
+          </div>
+
           {previews.length > 0 && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -235,7 +268,7 @@ export default function ScanPage() {
                     Analyzing Plant Health...
                   </>
                 ) : (
-                  'Analyze Plant Health'
+                  t('scan.analyze')
                 )}
               </button>
             </motion.div>

@@ -70,7 +70,7 @@ async def root():
     return {
         "status": "healthy",
         "project": settings.PROJECT_NAME,
-        "version": "1.0.0",
+        "version": "2.0.0",
         "docs": f"{settings.API_V1_STR}/docs",
     }
 
