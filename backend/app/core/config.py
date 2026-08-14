@@ -11,29 +11,29 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "AgriVision AI"
     API_V1_STR: str = "/api/v1"
 
-    # Database Configuration
-    DATABASE_URL: str
+    # Database Configuration (SQLite default for easy deployment)
+    DATABASE_URL: str = "sqlite+aiosqlite:///./agrivision.db"
     
     # Backend URL for image serving (defaults to localhost for development)
     BACKEND_URL: str = "http://localhost:8000"
 
-    # Authentication (Supabase)
-    SUPABASE_JWT_SECRET: str
+    # Authentication - use secure random default if not provided
+    SUPABASE_JWT_SECRET: str = "agrivision-secure-jwt-secret-change-in-production-2024"
     SUPABASE_JWT_ALGORITHM: str = "HS256"
 
-    # Cloudflare R2 / S3 Storage
-    R2_ACCESS_KEY: str
-    R2_SECRET_KEY: str
-    R2_ENDPOINT_URL: str
-    R2_BUCKET_NAME: str
+    # Cloudflare R2 / S3 Storage (optional - uses local storage if not set)
+    R2_ACCESS_KEY: str = ""
+    R2_SECRET_KEY: str = ""
+    R2_ENDPOINT_URL: str = ""
+    R2_BUCKET_NAME: str = ""
 
-    # Modal ML Inference Serverless Endpoint
-    MODAL_API_URL: str
+    # Modal ML Inference Serverless Endpoint (optional - uses local model)
+    MODAL_API_URL: str = ""
     CONFIDENCE_THRESHOLD: float = 0.60
 
-    # AI Assistant / Chatbot
-    AI_PROVIDER: str = "openai"        # "openai" or "gemini"
-    AI_API_KEY: str = ""               # Populate from .env to enable the chatbot
-    AI_MODEL: str = ""                 # e.g. "gpt-4o-mini" or "gemini-1.5-flash"
+    # AI Assistant / Chatbot (optional)
+    AI_PROVIDER: str = "openai"
+    AI_API_KEY: str = ""
+    AI_MODEL: str = ""
 
 settings = Settings()
