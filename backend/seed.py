@@ -10,7 +10,7 @@ from app.core.security import get_password_hash
 
 async def seed_data():
     async with SessionLocal() as db:
-        print("🌱 Seeding database...")
+        print("[SEED] Seeding database...")
 
         # -----------------------------
         # Skip if already seeded
@@ -19,7 +19,7 @@ async def seed_data():
         existing_user = result.scalars().first()
 
         if existing_user:
-            print("✅ Database already seeded.")
+            print("[SUCCESS] Database already seeded.")
             return
 
         # -----------------------------
@@ -58,21 +58,21 @@ async def seed_data():
         db.add_all([farmer, admin, expert])
         await db.commit()
 
-        print("✅ Test users seeded successfully:")
+        print("[SUCCESS] Test users seeded successfully:")
         print("   - farmer@test.com / password123")
         print("   - admin@test.com / password123")
         print("   - expert@test.com / password123")
 
         # -----------------------------
-        # Diseases (All 10 classes from EfficientNetB0 model)
+        # Diseases
         # -----------------------------
         diseases = [
             Disease(
                 id=1,
                 name="Healthy",
-                description="Healthy tomato plant with no signs of disease",
-                symptoms="Green vigorous leaves, normal growth, no spots or lesions",
-                causes="Good plant care, proper nutrition, disease-free environment",
+                description="No symptoms of disease detected on tomato plant foliage",
+                symptoms="Vibrant green leaves, uniform color, healthy stem and foliage structure",
+                causes="Good farming practices, proper irrigation, balanced nutrition",
                 severity_level="Low"
             ),
             Disease(
@@ -110,48 +110,49 @@ async def seed_data():
             Disease(
                 id=6,
                 name="Leaf Mold",
-                description="Fungal disease caused by Passalora fulva (formerly Cladosporium fulvum)",
-                symptoms="Yellow spots on upper leaf surface, olive-green to gray velvety mold on undersides",
-                causes="High humidity, poor air circulation, warm temperatures",
+                description="Fungal disease caused by Passalora fulva in high-humidity environments",
+                symptoms="Pale green or yellow spots on upper leaf surfaces, velvety olive-green mold below",
+                causes="High humidity (>85%), poor ventilation in greenhouses or humid fields",
                 severity_level="Medium"
             ),
             Disease(
                 id=7,
                 name="Septoria Leaf Spot",
                 description="Fungal disease caused by Septoria lycopersici",
-                symptoms="Small circular spots with dark borders and gray centers, black specks (fruiting bodies)",
-                causes="Wet weather, rain splash, infected plant debris",
+                symptoms="Numerous small circular spots with gray-white centers and dark brown margins",
+                causes="Splashing water, warm temperatures (20-25°C), high humidity",
                 severity_level="Medium"
             ),
             Disease(
                 id=8,
                 name="Spider Mites (Two-Spotted)",
-                description="Tiny arachnid pests that feed on plant sap",
-                symptoms="Yellow stippling on leaves, fine webbing, bronzed or dried leaves",
-                causes="Hot dry conditions, dusty environments, lack of natural predators",
-                severity_level="Medium"
+                description="Infestation by Tetranychus urticae tiny arachnids",
+                symptoms="Yellow speckling or stippling on leaves, fine webbing on underside of foliage",
+                causes="Hot, dry, dusty conditions accelerating mite reproduction",
+                severity_level="High"
             ),
             Disease(
                 id=9,
                 name="Target Spot",
                 description="Fungal disease caused by Corynespora cassiicola",
-                symptoms="Circular spots with concentric rings (target-like), brown necrotic tissue",
-                causes="Warm humid weather, rain splash, infected debris",
+                symptoms="Target-like brown lesions with concentric rings starting on lower foliage",
+                causes="Warm humid weather, extended leaf wetness, plant stress",
                 severity_level="Medium"
             ),
             Disease(
                 id=10,
                 name="Tomato Yellow Leaf Curl Virus",
-                description="Viral disease transmitted by whiteflies",
-                symptoms="Upward curling of leaves, yellowing, stunted plant growth, reduced fruit production",
-                causes="Transmitted by whitefly vectors, infected transplants",
+                description="Devastating viral disease transmitted by Bemisia tabaci whiteflies",
+                symptoms="Severe curling/cupping of leaves, yellowing margins, stunted bushy growth",
+                causes="Whitefly vector transmission, hot climate",
                 severity_level="High"
             )
         ]
         
         db.add_all(diseases)
         await db.commit()
-        print("✅ Diseases seeded successfully")
+
+        print("[SUCCESS] Diseases seeded successfully")
 
         # -----------------------------
         # Pesticides
@@ -189,7 +190,7 @@ async def seed_data():
         
         db.add_all(pesticides)
         await db.commit()
-        print("✅ Pesticides seeded successfully")
+        print("[SUCCESS] Pesticides seeded successfully")
 
         # -----------------------------
         # Fertilizers
@@ -220,9 +221,9 @@ async def seed_data():
         
         db.add_all(fertilizers)
         await db.commit()
-        print("✅ Fertilizers seeded successfully")
+        print("[SUCCESS] Fertilizers seeded successfully")
 
-        print("🎉 Database seeding completed successfully.")
+        print("[SUCCESS] Database seeding completed successfully.")
 
 
 if __name__ == "__main__":

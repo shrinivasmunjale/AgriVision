@@ -2,13 +2,34 @@
 
 import { useAuth } from '@/contexts/AuthContext'
 import { useRouter, usePathname } from 'next/navigation'
-import { Home, Camera, History, Settings, LogOut, BarChart3 } from 'lucide-react'
+import { Home, Camera, History, Settings, LogOut, BarChart3, Sun, Moon, HelpCircle, Lightbulb, MessageCircle } from 'lucide-react'
 import Link from 'next/link'
+import { useTheme } from '@/contexts/ThemeContext'
+import UserMenu from '@/components/UserMenu'
+import LanguageToggle from '@/components/ui/LanguageToggle'
+import Chatbot from '@/components/Chatbot'
+import { useI18n } from '@/contexts/I18nContext'
+import { useMemo } from 'react'
+
+const pageTitles = {
+  '/dashboard': 'Dashboard',
+  '/scan': 'Scan Plant Health',
+  '/history': 'History',
+  '/profile': 'Profile',
+  '/admin': 'Admin',
+}
 
 export default function Layout({ children }) {
   const { user, signOut, profile } = useAuth()
   const router = useRouter()
   const pathname = usePathname()
+  const { theme, toggle } = useTheme()
+  const { t } = useI18n()
+
+  const title = useMemo(() => {
+    if (pathname?.startsWith('/history/')) return 'Prediction Detail'
+    return pageTitles[pathname] || 'AgriVision AI'
+  }, [pathname])
 
   const handleSignOut = async () => {
     await signOut()
@@ -22,6 +43,9 @@ export default function Layout({ children }) {
     { icon: Camera, label: 'Scan', href: '/scan' },
     { icon: History, label: 'History', href: '/history' },
     ...(isAdmin ? [{ icon: BarChart3, label: 'Admin', href: '/admin' }] : []),
+    { icon: Lightbulb, label: 'Tips', href: '/tips' },
+    { icon: HelpCircle, label: 'FAQ', href: '/faq' },
+    { icon: MessageCircle, label: 'Contact', href: '/contact' },
     { icon: Settings, label: 'Profile', href: '/profile' },
   ]
 
@@ -53,7 +77,14 @@ export default function Layout({ children }) {
               )
             })}
           </nav>
-          <div className="flex-shrink-0 p-4 border-t border-border-subtle">
+          <div className="flex-shrink-0 p-4 border-t border-border-subtle space-y-1">
+            <button
+              onClick={toggle}
+              className="flex items-center w-full px-4 py-3 text-sm font-medium text-text-secondary hover:text-text-primary hover:bg-surface-base rounded-xl transition-colors"
+            >
+              {theme === 'dark' ? <Sun className="w-5 h-5 mr-3" /> : <Moon className="w-5 h-5 mr-3" />}
+              {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+            </button>
             <button
               onClick={handleSignOut}
               className="flex items-center w-full px-4 py-3 text-sm font-medium text-text-secondary hover:text-text-primary hover:bg-surface-base rounded-xl transition-colors"
@@ -89,8 +120,19 @@ export default function Layout({ children }) {
 
       {/* Main Content */}
       <main className="lg:pl-64 pb-20 lg:pb-0">
+        {/* Sticky top header */}
+        <header className="sticky top-0 z-30 bg-surface-base/80 backdrop-blur-xl border-b border-border-subtle px-4 lg:px-8 flex items-center justify-between h-16">
+          <h1 className="text-lg font-bold text-text-primary truncate">{title}</h1>
+          <div className="flex items-center gap-2">
+            <LanguageToggle className="hidden sm:block" />
+            <UserMenu />
+          </div>
+        </header>
         <div className="max-w-7xl mx-auto">{children}</div>
       </main>
+
+      {/* Global floating AI chatbot */}
+      <Chatbot />
     </div>
   )
 }

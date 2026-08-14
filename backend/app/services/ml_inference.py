@@ -69,3 +69,4 @@ class MLInferenceService:
         return predictions
 
 ml_service = MLInferenceService()
+

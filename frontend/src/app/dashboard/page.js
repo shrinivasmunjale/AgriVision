@@ -9,6 +9,8 @@ import Layout from '@/components/Layout'
 import { Camera, TrendingUp, CheckCircle, AlertTriangle } from 'lucide-react'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
+import WeatherWidget from '@/components/WeatherWidget'
+import FarmingTips from '@/components/FarmingTips'
 
 export default function DashboardPage() {
   const { user, loading, getAccessToken, profile } = useAuth()
@@ -197,6 +199,12 @@ export default function DashboardPage() {
             </div>
           </div>
         </motion.div>
+
+        {/* Weather + Farming tips */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+          <WeatherWidget />
+          <FarmingTips />
+        </div>
 
         <motion.div
           initial={{ opacity: 0, y: 20 }}
