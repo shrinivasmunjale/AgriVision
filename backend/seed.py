@@ -64,9 +64,17 @@ async def seed_data():
         print("   - expert@test.com / password123")
 
         # -----------------------------
-        # Diseases
+        # Diseases (All 10 classes from EfficientNetB0 model)
         # -----------------------------
         diseases = [
+            Disease(
+                id=1,
+                name="Healthy",
+                description="Healthy tomato plant with no signs of disease",
+                symptoms="Green vigorous leaves, normal growth, no spots or lesions",
+                causes="Good plant care, proper nutrition, disease-free environment",
+                severity_level="Low"
+            ),
             Disease(
                 id=2,
                 name="Early Blight",
@@ -97,6 +105,46 @@ async def seed_data():
                 description="Viral disease causing mosaic pattern on leaves",
                 symptoms="Mottled light and dark green leaf pattern, stunted growth, reduced yield",
                 causes="Transmitted by handling infected plants, contaminated tools",
+                severity_level="High"
+            ),
+            Disease(
+                id=6,
+                name="Leaf Mold",
+                description="Fungal disease caused by Passalora fulva (formerly Cladosporium fulvum)",
+                symptoms="Yellow spots on upper leaf surface, olive-green to gray velvety mold on undersides",
+                causes="High humidity, poor air circulation, warm temperatures",
+                severity_level="Medium"
+            ),
+            Disease(
+                id=7,
+                name="Septoria Leaf Spot",
+                description="Fungal disease caused by Septoria lycopersici",
+                symptoms="Small circular spots with dark borders and gray centers, black specks (fruiting bodies)",
+                causes="Wet weather, rain splash, infected plant debris",
+                severity_level="Medium"
+            ),
+            Disease(
+                id=8,
+                name="Spider Mites (Two-Spotted)",
+                description="Tiny arachnid pests that feed on plant sap",
+                symptoms="Yellow stippling on leaves, fine webbing, bronzed or dried leaves",
+                causes="Hot dry conditions, dusty environments, lack of natural predators",
+                severity_level="Medium"
+            ),
+            Disease(
+                id=9,
+                name="Target Spot",
+                description="Fungal disease caused by Corynespora cassiicola",
+                symptoms="Circular spots with concentric rings (target-like), brown necrotic tissue",
+                causes="Warm humid weather, rain splash, infected debris",
+                severity_level="Medium"
+            ),
+            Disease(
+                id=10,
+                name="Tomato Yellow Leaf Curl Virus",
+                description="Viral disease transmitted by whiteflies",
+                symptoms="Upward curling of leaves, yellowing, stunted plant growth, reduced fruit production",
+                causes="Transmitted by whitefly vectors, infected transplants",
                 severity_level="High"
             )
         ]
