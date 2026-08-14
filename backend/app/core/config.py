@@ -31,4 +31,9 @@ class Settings(BaseSettings):
     MODAL_API_URL: str
     CONFIDENCE_THRESHOLD: float = 0.60
 
+    # AI Assistant / Chatbot
+    AI_PROVIDER: str = "openai"        # "openai" or "gemini"
+    AI_API_KEY: str = ""               # Populate from .env to enable the chatbot
+    AI_MODEL: str = ""                 # e.g. "gpt-4o-mini" or "gemini-1.5-flash"
+
 settings = Settings()

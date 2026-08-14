@@ -29,6 +29,24 @@ export const authAPI = {
     api.get('/auth/me', {
       headers: { Authorization: `Bearer ${token}` },
     }),
+  changePassword: (data, token) =>
+    api.post('/auth/change-password', data, {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  forgotPassword: (data) => api.post('/auth/forgot-password', data),
+  resetPassword: (data) => api.post('/auth/reset-password', data),
+}
+
+// Misc / platform endpoints
+export const miscAPI = {
+  weather: (lat, lon) => api.get('/misc/weather', { params: { lat, lon } }),
+  tips: () => api.get('/misc/tips'),
+  contact: (data) => api.post('/misc/contact', data),
+}
+
+// AI Chatbot
+export const chatAPI = {
+  send: (data) => api.post('/chat', data),
 }
 
 export const predictionsAPI = {

@@ -12,3 +12,7 @@ reportlab==4.0.0
 httpx==0.26.0
 python-multipart==0.0.6
 email-validator==2.2.0
+pillow>=10.0.0
+# Machine Learning Inference (PyTorch)
+torch>=2.0.0
+torchvision>=0.15.0

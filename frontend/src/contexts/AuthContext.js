@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useState } from 'react'
 import axios from 'axios'
+import { authAPI } from '@/lib/api'
 
 const AuthContext = createContext({})
 
@@ -105,6 +106,28 @@ export const AuthProvider = ({ children }) => {
     return localStorage.getItem('access_token')
   }
 
+  const changePassword = async (oldPassword, newPassword) => {
+    const token = await getAccessToken()
+    const response = await authAPI.changePassword(
+      { old_password: oldPassword, new_password: newPassword },
+      token
+    )
+    return response.data
+  }
+
+  const forgotPassword = async (email) => {
+    const response = await authAPI.forgotPassword({ email })
+    return response.data
+  }
+
+  const resetPassword = async (token, newPassword) => {
+    const response = await authAPI.resetPassword({
+      token,
+      new_password: newPassword,
+    })
+    return response.data
+  }
+
   const value = {
     signIn,
     signUp,
@@ -114,6 +137,9 @@ export const AuthProvider = ({ children }) => {
     loading,
     profile,
     getAccessToken,
+    changePassword,
+    forgotPassword,
+    resetPassword,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

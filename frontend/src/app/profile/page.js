@@ -1,15 +1,33 @@
 'use client'
 
 import { useAuth } from '@/contexts/AuthContext'
-import { useRouter } from 'next/navigation'
-import { useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { Suspense, useEffect } from 'react'
 import Layout from '@/components/Layout'
-import { User, Mail, Building2, Phone, Shield, LogOut } from 'lucide-react'
+import { User, Mail, Building2, Phone, Shield, LogOut, KeyRound } from 'lucide-react'
 import { motion } from 'framer-motion'
+import Button from '@/components/ui/Button'
+import ChangePasswordForm from '@/components/ChangePasswordForm'
 
 export default function ProfilePage() {
+  return (
+    <Suspense
+      fallback={
+        <Layout>
+          <div className="p-8 text-text-secondary">Loading…</div>
+        </Layout>
+      }
+    >
+      <ProfileContent />
+    </Suspense>
+  )
+}
+
+function ProfileContent() {
   const { user, loading, profile, signOut } = useAuth()
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const tab = searchParams.get('tab') || 'profile'
 
   useEffect(() => {
     if (!loading && !user) {
@@ -40,9 +58,43 @@ export default function ProfilePage() {
           animate={{ opacity: 1, y: 0 }}
           className="max-w-2xl mx-auto"
         >
-          <h1 className="text-3xl font-bold text-text-primary mb-2">Profile</h1>
-          <p className="text-text-secondary mb-8">Manage your account information</p>
+          <h1 className="text-3xl font-bold text-text-primary mb-2">
+            {tab === 'password' ? 'Change Password' : 'Profile'}
+          </h1>
+          <p className="text-text-secondary mb-6">
+            {tab === 'password'
+              ? 'Update your account password'
+              : 'Manage your account information'}
+          </p>
 
+          {/* Tabs */}
+          <div className="flex gap-2 mb-6 bg-surface-card p-1 rounded-xl border border-border-subtle w-fit">
+            <button
+              onClick={() => router.replace('/profile')}
+              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                tab !== 'password'
+                  ? 'bg-primary-400 text-white'
+                  : 'text-text-secondary hover:text-text-primary'
+              }`}
+            >
+              Profile
+            </button>
+            <button
+              onClick={() => router.replace('/profile?tab=password')}
+              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                tab === 'password'
+                  ? 'bg-primary-400 text-white'
+                  : 'text-text-secondary hover:text-text-primary'
+              }`}
+            >
+              Password
+            </button>
+          </div>
+
+          {tab === 'password' ? (
+            <ChangePasswordForm />
+          ) : (
+            <>
           <div className="bg-surface-card rounded-2xl p-6 border border-border-subtle mb-6">
             <div className="flex items-center gap-4 mb-6">
               <div className="w-20 h-20 bg-primary-400/20 rounded-full flex items-center justify-center">
@@ -114,6 +166,8 @@ export default function ProfilePage() {
             <LogOut className="w-5 h-5" />
             Sign Out
           </button>
+          </>
+          )}
         </motion.div>
       </div>
     </Layout>

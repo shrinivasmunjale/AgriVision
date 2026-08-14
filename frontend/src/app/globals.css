@@ -10,15 +10,55 @@
   --color-primary-100: #A2F4C8;
   --color-accent: #DDA15E;
 
-  --color-bg-canvas: #1E1F22;
-  --color-bg-base: #202124;
-  --color-bg-surface: #F8F9FA;
-  --color-bg-card: #2A2E2B;
-  --color-border-subtle: #3A3F3C;
-  --color-border-light: #E1E3E1;
-  --color-text-primary: #F5F7F6;
-  --color-text-secondary: #9AA39D;
-  --color-text-inverse: #14171A;
+  /* Dark theme (default) */
+  --surface-canvas: #1e1f22;
+  --surface-base: #202124;
+  --surface-card: #2A2E2B;
+  --surface-light: #F8F9FA;
+  --border-subtle: #3A3F3C;
+  --border-light: #E1E3E1;
+  --text-primary: #F5F7F6;
+  --text-secondary: #9AA39D;
+  --text-inverse: #14171A;
+
+  color-scheme: dark;
+}
+
+[data-theme='light'] {
+  /* Light theme overrides */
+  --surface-canvas: #eef3ef;
+  --surface-base: #f3f6f4;
+  --surface-card: #ffffff;
+  --surface-light: #ffffff;
+  --border-subtle: #e4e9e6;
+  --border-light: #cfd6d2;
+  --text-primary: #18201b;
+  --text-secondary: #5b6660;
+  --text-inverse: #14171A;
+
+  color-scheme: light;
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Theming-aware brand extras */
+:root {
+  --color-bg-canvas: var(--surface-canvas);
+  --color-bg-base: var(--surface-base);
+  --color-bg-surface: var(--surface-light);
+  --color-bg-card: var(--surface-card);
+  --color-border-subtle: var(--border-subtle);
+  --color-border-light: var(--border-light);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-inverse: var(--text-inverse);
   --color-disabled: #767D79;
 
   --color-success-bg: #A2F4C8;

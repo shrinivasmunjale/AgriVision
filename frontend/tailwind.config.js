@@ -20,19 +20,19 @@ module.exports = {
           600: '#8A5A2A',
         },
         surface: {
-          canvas: '#1E1F22',
-          base: '#202124',
-          card: '#2A2E2B',
-          light: '#F8F9FA',
+          canvas: 'var(--surface-canvas)',
+          base: 'var(--surface-base)',
+          card: 'var(--surface-card)',
+          light: 'var(--surface-light)',
         },
         border: {
-          subtle: '#3A3F3C',
-          light: '#E1E3E1',
+          subtle: 'var(--border-subtle)',
+          light: 'var(--border-light)',
         },
         text: {
-          primary: '#F5F7F6',
-          secondary: '#9AA39D',
-          inverse: '#14171A',
+          primary: 'var(--text-primary)',
+          secondary: 'var(--text-secondary)',
+          inverse: 'var(--text-inverse)',
         },
         status: {
           successBg: '#A2F4C8',
