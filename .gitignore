@@ -91,3 +91,7 @@ static/uploads/
 # Reports
 reports/
 *.pdf
+
+# Development/Training folders
+mywork/
+source/
