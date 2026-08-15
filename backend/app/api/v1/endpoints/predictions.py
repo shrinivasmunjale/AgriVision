@@ -94,6 +94,20 @@ async def analyze_images(
     # Call ML inference service
     ml_predictions = await ml_service.predict_disease(request.image_urls)
     
+    # Check if any prediction failed leaf detection or confidence threshold (<70%)
+    failed_preds = [p for p in ml_predictions if p.get("success") == False]
+    if failed_preds:
+        warning_msg = failed_preds[0].get(
+            "message", 
+            "⚠️ Invalid image for tomato leaf classification."
+        )
+        return AnalyzeResponse(
+            success=False,
+            predictions=[],
+            message=warning_msg,
+            warning=warning_msg
+        )
+    
     predictions_response = []
     
     for ml_pred in ml_predictions:

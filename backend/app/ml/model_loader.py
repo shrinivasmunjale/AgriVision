@@ -29,8 +29,6 @@ MYWORK_MODEL_FILE = MYWORK_MODEL_DIR / "best_efficientnetb0.pth"
 MYWORK_CLASS_NAMES = MYWORK_MODEL_DIR / "class_names.json"
 
 # Display-name (lower-cased) -> AgriVision database disease_id mapping.
-# Derived from backend/app/ml/labels.json so the model output index can be
-# translated into the disease ids used by the DB / recommendation engine.
 DISEASE_ID_MAP = {
     "bacterial spot": 4,
     "tomato bacterial spot": 4,
@@ -89,7 +87,7 @@ class PyTorchModelLoader:
         
     def _init_environment(self):
         """Check for PyTorch availability, model weights, and labels configuration."""
-        # 1. Load labels mapping (class_names.json in mywork/ takes priority, else labels.json)
+        # 1. Load labels mapping
         self._load_labels()
         
         # 2. Check if PyTorch is installed
@@ -115,21 +113,14 @@ class PyTorchModelLoader:
             ])
         except ImportError:
             self.is_torch_available = False
-            print("[INFO] PyTorch (torch/torchvision/Pillow) is not installed. Using fallback predictions.")
+            print("[INFO] PyTorch is not installed. Using fallback predictions.")
             return
 
         # 3. Locate and load model weights
         self._load_model()
 
     def _load_labels(self):
-        """Load the model's class -> disease mapping.
-
-        Priority:
-          1. backend/app/ml/class_names.json (deployed with model)
-          2. mywork/models/class_names.json  (raw model class names -> disease ids)
-          3. backend/app/ml/labels.json      (pre-mapped disease info)
-        """
-        # 1) Check deployed class_names.json first
+        """Load the model's class -> disease mapping."""
         if CLASS_NAMES_FILE.exists():
             try:
                 with open(CLASS_NAMES_FILE, "r", encoding="utf-8") as f:
@@ -143,7 +134,6 @@ class PyTorchModelLoader:
             except Exception as e:
                 print(f"[WARNING] Failed to load class_names.json from ML_DIR: {e}")
         
-        # 2) Raw model class names from mywork -> build mapped labels
         if MYWORK_CLASS_NAMES.exists():
             try:
                 with open(MYWORK_CLASS_NAMES, "r", encoding="utf-8") as f:
@@ -157,7 +147,6 @@ class PyTorchModelLoader:
             except Exception as e:
                 print(f"[WARNING] Failed to load class_names.json from mywork: {e}")
 
-        # 3) Fallback to pre-mapped labels.json
         if LABELS_FILE.exists():
             try:
                 with open(LABELS_FILE, "r", encoding="utf-8") as f:
@@ -166,31 +155,24 @@ class PyTorchModelLoader:
                 print(f"[WARNING] Failed to load labels.json: {e}")
 
     def _load_model(self):
-        """Find and load a PyTorch model file."""
+        """Find and load PyTorch model file."""
         if not self.is_torch_available:
             return
             
         import torch
 
-        # Look for the trained model. Priority:
-        # 1. backend/app/ml/ (deployed with app)
-        # 2. mywork/models/ (local development)
         found_path = None
-
-        # Check deployed model location first
         for path in MODEL_CANDIDATES:
             if path.exists():
                 found_path = path
                 print(f"[MODEL] Found deployed model at: {path}")
                 break
 
-        # Fallback to mywork/models for local development
         if found_path is None and MYWORK_MODEL_FILE.exists():
             found_path = MYWORK_MODEL_FILE
             print(f"[MODEL] Found development model at: {MYWORK_MODEL_FILE}")
 
         if found_path is None:
-            # Look for any .pt or .pth file in ML_DIR first, then mywork/models/
             pt_files = list(ML_DIR.glob("*.pt")) + list(ML_DIR.glob("*.pth"))
             if not pt_files and MYWORK_MODEL_DIR.is_dir():
                 pt_files = list(MYWORK_MODEL_DIR.glob("*.pt")) + list(MYWORK_MODEL_DIR.glob("*.pth"))
@@ -198,22 +180,17 @@ class PyTorchModelLoader:
                 found_path = pt_files[0]
 
         if not found_path:
-            print(
-                f"[INFO] No PyTorch model file found in {ML_DIR} or {MYWORK_MODEL_DIR}. "
-                "Place model.pt / best_efficientnetb0.pth here for local inference."
-            )
+            print(f"[INFO] No PyTorch model file found in {ML_DIR} or {MYWORK_MODEL_DIR}.")
             return
 
         self.model_path = found_path
         print(f"[MODEL] Loading PyTorch model from: {found_path} on device: {self.device}")
 
         try:
-            # First try loading as TorchScript model
             self.model = torch.jit.load(str(found_path), map_location=self.device)
             self.model.eval()
             print("[SUCCESS] TorchScript model loaded successfully!")
         except Exception as script_err:
-            # Fallback to standard torch.load
             try:
                 loaded = torch.load(str(found_path), map_location=self.device)
                 if isinstance(loaded, torch.nn.Module):
@@ -221,19 +198,16 @@ class PyTorchModelLoader:
                     self.model.eval()
                     print("[SUCCESS] PyTorch nn.Module loaded successfully!")
                 elif isinstance(loaded, dict) and "model" in loaded and isinstance(loaded["model"], torch.nn.Module):
-                    # e.g., YOLO / PyTorch model checkpoint
                     self.model = loaded["model"]
                     if hasattr(self.model, "eval"):
                         self.model.eval()
                     print("[SUCCESS] PyTorch model checkpoint loaded successfully!")
                 elif isinstance(loaded, dict):
-                    # State dict handling (e.g. EfficientNet-B0, ResNet)
                     state_dict = loaded.get("state_dict", loaded.get("model_state_dict", loaded))
                     num_classes = len(self.labels) if self.labels else 10
                     import torchvision.models as tv_models
                     import torch.nn as nn
                     
-                    # 1. Try EfficientNet-B0 (your trained model)
                     try:
                         eff_model = tv_models.efficientnet_b0(weights=None)
                         in_features = eff_model.classifier[1].in_features
@@ -243,7 +217,6 @@ class PyTorchModelLoader:
                         self.model.eval()
                         print("[SUCCESS] EfficientNet-B0 model loaded successfully from state dict!")
                     except Exception as eff_err:
-                        # 2. Try ResNet-18
                         try:
                             res_model = tv_models.resnet18(weights=None)
                             res_model.fc = nn.Linear(res_model.fc.in_features, num_classes)
@@ -254,7 +227,7 @@ class PyTorchModelLoader:
                         except Exception as res_err:
                             print(f"[WARNING] Could not automatically map state dict: {res_err}")
                 else:
-                    print(f"[WARNING] torch.load returned object format that requires custom model instantiation: {script_err}")
+                    print(f"[WARNING] torch.load returned object format: {script_err}")
             except Exception as load_err:
                 print(f"[ERROR] Failed to load model from {found_path}: {load_err}")
 
@@ -273,14 +246,14 @@ class PyTorchModelLoader:
                 image_bytes = resp.content
             image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
         else:
-            # Local file path
             image = Image.open(image_url).convert("RGB")
         return image
 
     async def predict_image(self, image_url: str) -> Dict:
         """
-        Run inference on an image URL or local path.
-        Returns a dict matching AgriVision prediction format.
+        Run two-stage pipeline:
+        1. Run YOLOv8 detection. If no leaf, return error message.
+        2. Run EfficientNetB0 classification. If confidence < 70%, return error message.
         """
         if not self.is_ready():
             raise RuntimeError("PyTorch model is not loaded.")
@@ -289,21 +262,29 @@ class PyTorchModelLoader:
 
         image = await self._fetch_image(image_url)
         
-        # 1. Detect and crop tomato leaf using YOLOv8
+        # Step 5 & 6: First run YOLO detection. If YOLO does not detect any tomato leaf, DO NOT call EfficientNet.
         try:
             from app.ml.yolo_detector import yolo_leaf_detector
-            cropped_image = yolo_leaf_detector.detect_and_crop(image)
+            has_leaf, cropped_image, leaf_conf = yolo_leaf_detector.detect_leaf(image)
         except Exception as e:
-            print(f"[WARNING] YOLO leaf detection error: {e}. Using original image.")
-            cropped_image = image
+            print(f"[WARNING] YOLO leaf detection error: {e}")
+            has_leaf, cropped_image, leaf_conf = True, image, 1.0
 
-        # 2. EfficientNetB0 disease classification on cropped image
+        # Step 7: Return error response if no tomato leaf detected
+        if not has_leaf or cropped_image is None:
+            return {
+                "success": False,
+                "message": "⚠️ No tomato leaf detected. Please upload a clear image containing a tomato leaf.",
+                "image_url": image_url,
+                "confidence_score": 0.0
+            }
+
+        # Step 6: If leaf detected, classify with EfficientNetB0
         input_tensor = self.transform(cropped_image).unsqueeze(0).to(self.device)
 
         with torch.no_grad():
             outputs = self.model(input_tensor)
             
-            # Handle dictionary or tuple outputs (e.g. YOLO/detectors)
             if isinstance(outputs, dict):
                 outputs = outputs.get("out", outputs.get("logits", outputs))
             elif isinstance(outputs, (tuple, list)):
@@ -315,12 +296,22 @@ class PyTorchModelLoader:
             class_idx = str(top_catid.item())
             confidence = round(float(top_prob.item()), 4)
 
+        # Step 9: If EfficientNet confidence is below 70%, return low confidence warning
+        if confidence < 0.70:
+            return {
+                "success": False,
+                "message": "⚠️ Prediction confidence is too low. Please upload a clearer image of a single tomato leaf.",
+                "image_url": image_url,
+                "confidence_score": confidence
+            }
+
         # Look up disease info in labels.json
         label_info = self.labels.get(class_idx, {})
         disease_id = label_info.get("disease_id", int(class_idx) if class_idx.isdigit() else None)
         disease_name = label_info.get("name", f"Class {class_idx}")
 
         return {
+            "success": True,
             "image_url": image_url,
             "disease_id": disease_id,
             "disease_name": disease_name,
@@ -336,13 +327,13 @@ class PyTorchModelLoader:
                 results.append(res)
             except Exception as e:
                 print(f"[ERROR] Error predicting image {url}: {e}")
-                # Fallback item if individual image fails
                 results.append({
+                    "success": False,
+                    "message": f"⚠️ Error processing image: {e}",
                     "image_url": url,
-                    "disease_id": 2,
-                    "disease_name": "Early Blight",
-                    "confidence_score": 0.75
+                    "confidence_score": 0.0
                 })
         return results
+
 
 pytorch_model_loader = PyTorchModelLoader()

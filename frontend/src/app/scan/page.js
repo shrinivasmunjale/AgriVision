@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { predictionsAPI } from '@/lib/api'
 import Layout from '@/components/Layout'
-import { Upload, X, Loader, AlertCircle, Camera as CameraIcon } from 'lucide-react'
+import { Upload, X, Loader, AlertTriangle, Camera as CameraIcon } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useI18n } from '@/contexts/I18nContext'
 
@@ -107,16 +107,23 @@ export default function ScanPage() {
       )
 
       setAnalyzing(false)
+
+      // Step 10: Handle validation warning (no leaf detected or confidence < 70%)
+      if (analyzeResponse.data?.success === false) {
+        const warningMsg = analyzeResponse.data?.warning || analyzeResponse.data?.message || '⚠️ Invalid image for tomato leaf classification.'
+        setError(warningMsg)
+        return
+      }
+
       setFiles([])
       setPreviews([])
       
-      // Invalidate React Query cache so fresh data is immediately displayed without reloading
+      // Invalidate React Query cache so fresh data is immediately displayed
       await queryClient.invalidateQueries({ queryKey: ['predictions'] })
       await queryClient.invalidateQueries({ queryKey: ['all-predictions'] })
 
       const newPredictions = analyzeResponse.data?.predictions
       if (newPredictions && newPredictions.length > 0) {
-        // Direct navigation to the newly created prediction's detailed report
         router.push(`/history/${newPredictions[0].id}`)
       } else {
         router.push('/history')
@@ -154,14 +161,15 @@ export default function ScanPage() {
             Upload images of tomato leaves for AI-powered disease detection • Supports drone-captured aerial imagery
           </p>
 
+          {/* User-friendly Alert for Invalid / Low-Confidence Images */}
           {error && (
             <motion.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="mb-6 p-4 bg-status-dangerBg text-status-dangerText rounded-xl flex items-start gap-3"
+              className="mb-6 p-4 bg-amber-500/10 border border-amber-500/30 text-amber-400 rounded-xl flex items-start gap-3 shadow-md"
             >
-              <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-              <p>{error}</p>
+              <AlertTriangle className="w-6 h-6 flex-shrink-0 mt-0.5" />
+              <div className="text-sm font-medium leading-relaxed">{error}</div>
             </motion.div>
           )}
 

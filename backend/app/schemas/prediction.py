@@ -45,5 +45,7 @@ class AnalyzeRequest(BaseModel):
     life_stage: Optional[str] = None
 
 class AnalyzeResponse(BaseModel):
-    predictions: List[PredictionResponse]
+    success: bool = True
+    predictions: List[PredictionResponse] = []
     message: str
+    warning: Optional[str] = None

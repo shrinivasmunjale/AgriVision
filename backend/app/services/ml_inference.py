@@ -7,12 +7,12 @@ import random
 class MLInferenceService:
     def __init__(self):
         self.modal_url = settings.MODAL_API_URL
-        self.confidence_threshold = settings.CONFIDENCE_THRESHOLD
+        self.confidence_threshold = 0.70
     
     async def predict_disease(self, image_urls: List[str]) -> List[Dict]:
         """
         Predict disease from images. Order of priority:
-        1. Local custom PyTorch model (if model file exists in backend/app/ml/)
+        1. Local custom PyTorch model (YOLOv8 leaf check -> EfficientNetB0 disease classification)
         2. Modal API service (if MODAL_API_URL is configured)
         3. Mock predictions (development fallback)
         """
@@ -20,7 +20,7 @@ class MLInferenceService:
         # 1. Check for custom local PyTorch model
         if pytorch_model_loader.is_ready():
             try:
-                print("[ML] Running inference with custom PyTorch model...")
+                print("[ML] Running two-stage inference (YOLOv8 -> EfficientNetB0)...")
                 return await pytorch_model_loader.predict_batch(image_urls)
             except Exception as e:
                 print(f"[WARNING] PyTorch Inference Error: {e}. Falling back...")
@@ -44,7 +44,6 @@ class MLInferenceService:
     def _mock_predictions(self, image_urls: List[str]) -> List[Dict]:
         """
         Generate mock predictions for development/testing
-        Returns disease IDs matching the seed data
         """
         disease_options = [
             {"disease_id": 2, "disease_name": "Early Blight", "confidence": 0.87},
@@ -56,17 +55,16 @@ class MLInferenceService:
         predictions = []
         for url in image_urls:
             disease = random.choice(disease_options)
-            confidence = disease["confidence"] + random.uniform(-0.05, 0.05)
-            confidence = max(0.65, min(0.98, confidence))
+            confidence = round(disease["confidence"] + random.uniform(-0.05, 0.05), 2)
             
             predictions.append({
+                "success": True,
                 "image_url": url,
                 "disease_id": disease["disease_id"],
                 "disease_name": disease["disease_name"],
-                "confidence_score": round(confidence, 2)
+                "confidence_score": max(0.70, confidence)
             })
         
         return predictions
 
 ml_service = MLInferenceService()
-
