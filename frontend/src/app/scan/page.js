@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { predictionsAPI } from '@/lib/api'
 import Layout from '@/components/Layout'
-import { Upload, X, Loader, AlertTriangle, Camera as CameraIcon } from 'lucide-react'
+import { Upload, X, Loader, AlertTriangle, Camera as CameraIcon, Sparkles, Leaf } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useI18n } from '@/contexts/I18nContext'
 
@@ -79,6 +79,9 @@ export default function ScanPage() {
   const removeFile = (index) => {
     setFiles(files.filter((_, i) => i !== index))
     setPreviews(previews.filter((_, i) => i !== index))
+    if (files.length <= 1) {
+      setError('')
+    }
   }
 
   const handleAnalyze = async () => {
@@ -108,7 +111,7 @@ export default function ScanPage() {
 
       setAnalyzing(false)
 
-      // Step 10: Handle validation warning (no leaf detected or confidence < 70%)
+      // Handle validation warning (no leaf detected or confidence < 70%)
       if (analyzeResponse.data?.success === false) {
         const warningMsg = analyzeResponse.data?.warning || analyzeResponse.data?.message || '⚠️ Invalid image for tomato leaf classification.'
         setError(warningMsg)
@@ -135,7 +138,6 @@ export default function ScanPage() {
     }
   }
 
-
   if (loading || !user) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -160,18 +162,6 @@ export default function ScanPage() {
           <p className="text-text-secondary mb-8">
             Upload images of tomato leaves for AI-powered disease detection • Supports drone-captured aerial imagery
           </p>
-
-          {/* User-friendly Alert for Invalid / Low-Confidence Images */}
-          {error && (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="mb-6 p-4 bg-amber-500/10 border border-amber-500/30 text-amber-400 rounded-xl flex items-start gap-3 shadow-md"
-            >
-              <AlertTriangle className="w-6 h-6 flex-shrink-0 mt-0.5" />
-              <div className="text-sm font-medium leading-relaxed">{error}</div>
-            </motion.div>
-          )}
 
           <div
             onDragEnter={handleDrag}
@@ -225,6 +215,7 @@ export default function ScanPage() {
             </button>
           </div>
 
+          {/* Selected Images Section */}
           {previews.length > 0 && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -247,11 +238,11 @@ export default function ScanPage() {
                       <img
                         src={preview}
                         alt={`Preview ${index + 1}`}
-                        className="w-full h-32 object-cover rounded-xl"
+                        className="w-full h-32 object-cover rounded-xl border border-border-subtle"
                       />
                       <button
                         onClick={() => removeFile(index)}
-                        className="absolute top-2 right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="absolute top-2 right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
                       >
                         <X className="w-4 h-4" />
                       </button>
@@ -260,23 +251,47 @@ export default function ScanPage() {
                 </AnimatePresence>
               </div>
 
+              {/* Warning alert displayed DIRECTLY ABOVE the Analyze button */}
+              <AnimatePresence>
+                {error && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10, scale: 0.98 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="mb-4 p-4 bg-amber-500/15 border-2 border-amber-500/40 text-amber-300 rounded-2xl flex items-start gap-3.5 shadow-xl backdrop-blur-md"
+                  >
+                    <div className="p-2 bg-amber-500/20 rounded-xl flex-shrink-0">
+                      <AlertTriangle className="w-6 h-6 text-amber-400" />
+                    </div>
+                    <div className="text-sm font-medium leading-relaxed pt-1">
+                      {error}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Redesigned Premium "Analyze Plant Health" Button */}
               <button
                 onClick={handleAnalyze}
                 disabled={uploading || analyzing || files.length === 0}
-                className="w-full py-4 bg-primary text-white rounded-full font-semibold hover:bg-primary-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="w-full py-4.5 px-8 bg-gradient-to-r from-emerald-500 via-primary-400 to-green-600 hover:from-emerald-400 hover:to-green-500 text-white rounded-2xl font-bold text-lg shadow-xl shadow-emerald-500/20 hover:shadow-emerald-500/35 hover:scale-[1.01] active:scale-[0.99] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-3 border border-emerald-400/30"
               >
                 {uploading ? (
                   <>
-                    <Loader className="w-5 h-5 animate-spin" />
-                    Uploading Images...
+                    <Loader className="w-6 h-6 animate-spin" />
+                    <span>Uploading Images...</span>
                   </>
                 ) : analyzing ? (
                   <>
-                    <Loader className="w-5 h-5 animate-spin" />
-                    Analyzing Plant Health...
+                    <Loader className="w-6 h-6 animate-spin" />
+                    <span>Analyzing Plant Health...</span>
                   </>
                 ) : (
-                  t('scan.analyze')
+                  <>
+                    <Sparkles className="w-6 h-6 text-emerald-100 animate-pulse" />
+                    <span>{t('scan.analyze')}</span>
+                    <Leaf className="w-5 h-5 text-emerald-100" />
+                  </>
                 )}
               </button>
             </motion.div>
