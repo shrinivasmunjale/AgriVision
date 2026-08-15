@@ -17,6 +17,8 @@ class PredictionBase(BaseModel):
     image_url: str
     confidence_score: float
     disease_id: Optional[int] = None
+    crop_age_days: Optional[int] = None
+    life_stage: Optional[str] = None
 
 class PredictionCreate(PredictionBase):
     user_id: str
@@ -28,14 +30,19 @@ class PredictionResponse(BaseModel):
     disease_id: Optional[int] = None
     disease_name: Optional[str] = None
     confidence_score: float
+    crop_age_days: Optional[int] = None
+    life_stage: Optional[str] = None
     created_at: datetime
     recommendations: List[RecommendationItem] = []
+    disease_details: Optional[dict] = None
 
     class Config:
         from_attributes = True
 
 class AnalyzeRequest(BaseModel):
     image_urls: List[str]
+    crop_age_days: Optional[int] = None
+    life_stage: Optional[str] = None
 
 class AnalyzeResponse(BaseModel):
     predictions: List[PredictionResponse]

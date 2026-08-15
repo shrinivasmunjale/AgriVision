@@ -12,6 +12,8 @@ class Prediction(Base):
     image_url: Mapped[str] = mapped_column(String(512), nullable=False)
     disease_id: Mapped[int] = mapped_column(Integer, ForeignKey("diseases.id", ondelete="SET NULL"), nullable=True)
     confidence_score: Mapped[float] = mapped_column(Float, nullable=False)
+    crop_age_days: Mapped[int] = mapped_column(Integer, nullable=True)
+    life_stage: Mapped[str] = mapped_column(String(50), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     # Relationships

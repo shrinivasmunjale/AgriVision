@@ -1,0 +1,50 @@
+[
+  {
+    "id": 1,
+    "name": "Copper Fungicide",
+    "active_ingredient": "Copper hydroxide",
+    "dosage": "2-4 tablespoons per gallon",
+    "application_method": "Foliar spray every 7-10 days",
+    "suitable_life_stages": ["Seedling", "Vegetative", "Flowering", "Fruiting"]
+  },
+  {
+    "id": 2,
+    "name": "Chlorothalonil",
+    "active_ingredient": "Chlorothalonil 75%",
+    "dosage": "2 tablespoons per gallon",
+    "application_method": "Spray foliage thoroughly every 7-14 days",
+    "suitable_life_stages": ["Vegetative", "Flowering", "Fruiting"]
+  },
+  {
+    "id": 3,
+    "name": "Mancozeb",
+    "active_ingredient": "Mancozeb 75% WP",
+    "dosage": "2.5 tablespoons per gallon",
+    "application_method": "Apply as protective spray before disease appears",
+    "suitable_life_stages": ["Vegetative", "Flowering", "Fruiting"]
+  },
+  {
+    "id": 4,
+    "name": "Bacillus subtilis",
+    "active_ingredient": "Bacillus subtilis strain",
+    "dosage": "1-2 teaspoons per gallon",
+    "application_method": "Spray every 7-14 days as preventative",
+    "suitable_life_stages": ["Seedling", "Vegetative", "Flowering"]
+  },
+  {
+    "id": 5,
+    "name": "Azoxystrobin",
+    "active_ingredient": "Azoxystrobin 23% SC",
+    "dosage": "1 ml per liter of water",
+    "application_method": "Foliar spray at first sign of disease",
+    "suitable_life_stages": ["Flowering", "Fruiting"]
+  },
+  {
+    "id": 6,
+    "name": "Abamectin",
+    "active_ingredient": "Abamectin 1.8% EC",
+    "dosage": "0.5 ml per liter of water",
+    "application_method": "Foliar spray for spider mite control",
+    "suitable_life_stages": ["Vegetative", "Flowering", "Fruiting"]
+  }
+]

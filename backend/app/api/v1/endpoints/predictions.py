@@ -97,13 +97,21 @@ async def analyze_images(
     predictions_response = []
     
     for ml_pred in ml_predictions:
+        # Determine life stage based on input age or provided stage
+        active_life_stage = recommendation_engine.determine_life_stage(
+            crop_age_days=request.crop_age_days,
+            life_stage=request.life_stage
+        )
+
         # Create prediction record
         prediction = Prediction(
             id=str(uuid.uuid4()),
             user_id=current_user.id,
             image_url=ml_pred["image_url"],
             disease_id=ml_pred.get("disease_id"),
-            confidence_score=ml_pred["confidence_score"]
+            confidence_score=ml_pred["confidence_score"],
+            crop_age_days=request.crop_age_days,
+            life_stage=active_life_stage
         )
         db.add(prediction)
         await db.flush()
@@ -123,7 +131,9 @@ async def analyze_images(
         if prediction.disease_id:
             recs = await recommendation_engine.get_recommendations(
                 prediction.disease_id, 
-                db
+                db,
+                crop_age_days=request.crop_age_days,
+                life_stage=request.life_stage
             )
             
             # Save pesticide recommendations
@@ -163,8 +173,11 @@ async def analyze_images(
             disease_id=prediction.disease_id,
             disease_name=disease_name,
             confidence_score=prediction.confidence_score,
+            crop_age_days=prediction.crop_age_days,
+            life_stage=prediction.life_stage,
             created_at=prediction.created_at,
-            recommendations=recommendations_list
+            recommendations=recommendations_list,
+            disease_details=recommendation_engine.get_disease_knowledge(disease_name)
         ))
     
     await db.commit()
@@ -247,11 +260,68 @@ async def get_predictions(
             disease_id=pred.disease_id,
             disease_name=disease_name,
             confidence_score=pred.confidence_score,
+            crop_age_days=getattr(pred, "crop_age_days", None),
+            life_stage=getattr(pred, "life_stage", None),
             created_at=pred.created_at,
-            recommendations=recommendations_list
+            recommendations=recommendations_list,
+            disease_details=recommendation_engine.get_disease_knowledge(disease_name)
         ))
     
     return response
+
+
+@router.delete("/clear")
+async def clear_prediction_history(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Delete all prediction history for current user"""
+    result = await db.execute(
+        select(Prediction).filter(Prediction.user_id == current_user.id)
+    )
+    predictions = result.scalars().all()
+    
+    count = len(predictions)
+    for pred in predictions:
+        await db.delete(pred)
+        
+    await db.commit()
+    
+    return {
+        "message": f"Successfully cleared {count} prediction record(s)",
+        "deleted_count": count
+    }
+
+
+@router.delete("/{prediction_id}")
+async def delete_prediction(
+    prediction_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Delete a single prediction record by ID"""
+    result = await db.execute(
+        select(Prediction).filter(
+            Prediction.id == prediction_id,
+            Prediction.user_id == current_user.id
+        )
+    )
+    prediction = result.scalars().first()
+    
+    if not prediction:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Prediction not found"
+        )
+        
+    await db.delete(prediction)
+    await db.commit()
+    
+    return {
+        "message": "Prediction deleted successfully",
+        "id": prediction_id
+    }
+
 
 @router.get("/{prediction_id}", response_model=PredictionResponse)
 async def get_prediction(
@@ -324,8 +394,11 @@ async def get_prediction(
         disease_id=prediction.disease_id,
         disease_name=disease_name,
         confidence_score=prediction.confidence_score,
+        crop_age_days=getattr(prediction, "crop_age_days", None),
+        life_stage=getattr(prediction, "life_stage", None),
         created_at=prediction.created_at,
-        recommendations=recommendations_list
+        recommendations=recommendations_list,
+        disease_details=recommendation_engine.get_disease_knowledge(disease_name)
     )
 
 @router.get("/{prediction_id}/report")

@@ -33,33 +33,49 @@ MYWORK_CLASS_NAMES = MYWORK_MODEL_DIR / "class_names.json"
 # translated into the disease ids used by the DB / recommendation engine.
 DISEASE_ID_MAP = {
     "bacterial spot": 4,
+    "tomato bacterial spot": 4,
     "early blight": 2,
+    "tomato early blight": 2,
     "late blight": 3,
+    "tomato late blight": 3,
     "leaf mold": 6,
+    "tomato leaf mold": 6,
     "septoria leaf spot": 7,
+    "tomato septoria leaf spot": 7,
     "spider mites two-spotted spider mite": 8,
     "spider mites": 8,
+    "tomato spider mites two-spotted spider mite": 8,
     "target spot": 9,
+    "tomato target spot": 9,
     "tomato yellow leaf curl virus": 10,
+    "tomato tomato yellow leaf curl virus": 10,
+    "yellow leaf curl virus": 10,
     "tomato mosaic virus": 5,
+    "tomato tomato mosaic virus": 5,
     "healthy": 1,
+    "tomato healthy": 1,
 }
 
 def _clean_class_name(raw: str) -> str:
     """Turn PlantVillage-style names like 'Tomato___Bacterial_spot' into 'Bacterial Spot'."""
-    name = raw.replace("___", " ").replace("_", " ").strip()
-    return " ".join(part.capitalize() for part in name.split())
+    clean_name = raw.replace("Tomato___", "").replace("___", " ").replace("_", " ").strip()
+    return " ".join(part.capitalize() for part in clean_name.split())
 
 def _class_name_to_label_info(class_name: str, idx: int) -> Dict:
     """Map a raw model class name + index to AgriVision {disease_id, name}."""
-    clean = _clean_class_name(class_name).lower()
-    disease_id = DISEASE_ID_MAP.get(clean)
+    clean_display = _clean_class_name(class_name)
+    clean_key = clean_display.lower()
+    disease_id = DISEASE_ID_MAP.get(clean_key)
+    if disease_id is None:
+        raw_key = class_name.replace("___", " ").replace("_", " ").lower().strip()
+        disease_id = DISEASE_ID_MAP.get(raw_key)
     if disease_id is None:
         disease_id = idx + 1
     return {
         "disease_id": disease_id,
-        "name": _clean_class_name(class_name),
+        "name": clean_display,
     }
+
 
 class PyTorchModelLoader:
     def __init__(self):
@@ -272,7 +288,17 @@ class PyTorchModelLoader:
         import torch
 
         image = await self._fetch_image(image_url)
-        input_tensor = self.transform(image).unsqueeze(0).to(self.device)
+        
+        # 1. Detect and crop tomato leaf using YOLOv8
+        try:
+            from app.ml.yolo_detector import yolo_leaf_detector
+            cropped_image = yolo_leaf_detector.detect_and_crop(image)
+        except Exception as e:
+            print(f"[WARNING] YOLO leaf detection error: {e}. Using original image.")
+            cropped_image = image
+
+        # 2. EfficientNetB0 disease classification on cropped image
+        input_tensor = self.transform(cropped_image).unsqueeze(0).to(self.device)
 
         with torch.no_grad():
             outputs = self.model(input_tensor)

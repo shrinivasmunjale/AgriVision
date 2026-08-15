@@ -1,0 +1,746 @@
+[
+  {
+    "crop": "Tomato",
+    "disease": "Tomato Healthy",
+    "scientific_name": "Healthy",
+    "severity": "Low",
+    "life_stage": [
+      "Seedling",
+      "Vegetative",
+      "Flowering",
+      "Fruiting"
+    ],
+    "symptoms": [],
+    "causes": [],
+    "recommended_pesticides": [],
+    "recommended_fertilizers": [],
+    "organic_control": [
+      "Remove infected leaves.",
+      "Improve air circulation.",
+      "Use neem oil or approved biological products where appropriate."
+    ],
+    "preventive_measures": [
+      "Use disease-free seedlings.",
+      "Rotate crops.",
+      "Avoid overhead irrigation.",
+      "Monitor plants weekly."
+    ],
+    "recovery_tips": [
+      "Remove severely affected plants if necessary.",
+      "Maintain balanced irrigation and nutrition."
+    ]
+  },
+  {
+    "crop": "Tomato",
+    "disease": "Bacterial Spot",
+    "scientific_name": "Xanthomonas spp.",
+    "severity": "High",
+    "life_stage": [
+      "Seedling",
+      "Vegetative",
+      "Flowering",
+      "Fruiting"
+    ],
+    "symptoms": [
+      "Small water-soaked leaf spots",
+      "Dark lesions",
+      "Yellow halos"
+    ],
+    "causes": [
+      "Bacterial infection",
+      "Splashing water",
+      "Infected seed"
+    ],
+    "recommended_pesticides": [
+      {
+        "name": "Copper hydroxide",
+        "dosage": "Follow product label and local agricultural recommendations.",
+        "application_method": "Foliar spray unless label states otherwise.",
+        "frequency": "As directed on label.",
+        "how_to_use": [
+          "Read label before use.",
+          "Mix at recommended rate.",
+          "Spray evenly over affected foliage.",
+          "Wear PPE."
+        ],
+        "precautions": [
+          "Observe pre-harvest interval.",
+          "Avoid spraying during strong wind.",
+          "Keep away from children and animals."
+        ]
+      },
+      {
+        "name": "Copper oxychloride",
+        "dosage": "Follow product label and local agricultural recommendations.",
+        "application_method": "Foliar spray unless label states otherwise.",
+        "frequency": "As directed on label.",
+        "how_to_use": [
+          "Read label before use.",
+          "Mix at recommended rate.",
+          "Spray evenly over affected foliage.",
+          "Wear PPE."
+        ],
+        "precautions": [
+          "Observe pre-harvest interval.",
+          "Avoid spraying during strong wind.",
+          "Keep away from children and animals."
+        ]
+      }
+    ],
+    "recommended_fertilizers": [
+      {
+        "name": "Balanced NPK",
+        "purpose": "Support plant recovery and growth.",
+        "dosage": "Apply according to label and soil test.",
+        "application_method": "Foliar or soil application depending on product."
+      },
+      {
+        "name": "Calcium nitrate",
+        "purpose": "Support plant recovery and growth.",
+        "dosage": "Apply according to label and soil test.",
+        "application_method": "Foliar or soil application depending on product."
+      }
+    ],
+    "organic_control": [
+      "Remove infected leaves.",
+      "Improve air circulation.",
+      "Use neem oil or approved biological products where appropriate."
+    ],
+    "preventive_measures": [
+      "Use disease-free seedlings.",
+      "Rotate crops.",
+      "Avoid overhead irrigation.",
+      "Monitor plants weekly."
+    ],
+    "recovery_tips": [
+      "Remove severely affected plants if necessary.",
+      "Maintain balanced irrigation and nutrition."
+    ]
+  },
+  {
+    "crop": "Tomato",
+    "disease": "Early Blight",
+    "scientific_name": "Alternaria solani",
+    "severity": "Medium",
+    "life_stage": [
+      "Seedling",
+      "Vegetative",
+      "Flowering",
+      "Fruiting"
+    ],
+    "symptoms": [
+      "Concentric brown spots",
+      "Yellowing older leaves",
+      "Leaf drop"
+    ],
+    "causes": [
+      "Fungal infection",
+      "Warm humid weather"
+    ],
+    "recommended_pesticides": [
+      {
+        "name": "Mancozeb",
+        "dosage": "Follow product label and local agricultural recommendations.",
+        "application_method": "Foliar spray unless label states otherwise.",
+        "frequency": "As directed on label.",
+        "how_to_use": [
+          "Read label before use.",
+          "Mix at recommended rate.",
+          "Spray evenly over affected foliage.",
+          "Wear PPE."
+        ],
+        "precautions": [
+          "Observe pre-harvest interval.",
+          "Avoid spraying during strong wind.",
+          "Keep away from children and animals."
+        ]
+      },
+      {
+        "name": "Chlorothalonil",
+        "dosage": "Follow product label and local agricultural recommendations.",
+        "application_method": "Foliar spray unless label states otherwise.",
+        "frequency": "As directed on label.",
+        "how_to_use": [
+          "Read label before use.",
+          "Mix at recommended rate.",
+          "Spray evenly over affected foliage.",
+          "Wear PPE."
+        ],
+        "precautions": [
+          "Observe pre-harvest interval.",
+          "Avoid spraying during strong wind.",
+          "Keep away from children and animals."
+        ]
+      }
+    ],
+    "recommended_fertilizers": [
+      {
+        "name": "NPK 19:19:19",
+        "purpose": "Support plant recovery and growth.",
+        "dosage": "Apply according to label and soil test.",
+        "application_method": "Foliar or soil application depending on product."
+      },
+      {
+        "name": "Calcium nitrate",
+        "purpose": "Support plant recovery and growth.",
+        "dosage": "Apply according to label and soil test.",
+        "application_method": "Foliar or soil application depending on product."
+      }
+    ],
+    "organic_control": [
+      "Remove infected leaves.",
+      "Improve air circulation.",
+      "Use neem oil or approved biological products where appropriate."
+    ],
+    "preventive_measures": [
+      "Use disease-free seedlings.",
+      "Rotate crops.",
+      "Avoid overhead irrigation.",
+      "Monitor plants weekly."
+    ],
+    "recovery_tips": [
+      "Remove severely affected plants if necessary.",
+      "Maintain balanced irrigation and nutrition."
+    ]
+  },
+  {
+    "crop": "Tomato",
+    "disease": "Late Blight",
+    "scientific_name": "Phytophthora infestans",
+    "severity": "Very High",
+    "life_stage": [
+      "Seedling",
+      "Vegetative",
+      "Flowering",
+      "Fruiting"
+    ],
+    "symptoms": [
+      "Water-soaked lesions",
+      "White fungal growth",
+      "Rapid blight"
+    ],
+    "causes": [
+      "Cool humid weather"
+    ],
+    "recommended_pesticides": [
+      {
+        "name": "Metalaxyl + Mancozeb",
+        "dosage": "Follow product label and local agricultural recommendations.",
+        "application_method": "Foliar spray unless label states otherwise.",
+        "frequency": "As directed on label.",
+        "how_to_use": [
+          "Read label before use.",
+          "Mix at recommended rate.",
+          "Spray evenly over affected foliage.",
+          "Wear PPE."
+        ],
+        "precautions": [
+          "Observe pre-harvest interval.",
+          "Avoid spraying during strong wind.",
+          "Keep away from children and animals."
+        ]
+      },
+      {
+        "name": "Cymoxanil",
+        "dosage": "Follow product label and local agricultural recommendations.",
+        "application_method": "Foliar spray unless label states otherwise.",
+        "frequency": "As directed on label.",
+        "how_to_use": [
+          "Read label before use.",
+          "Mix at recommended rate.",
+          "Spray evenly over affected foliage.",
+          "Wear PPE."
+        ],
+        "precautions": [
+          "Observe pre-harvest interval.",
+          "Avoid spraying during strong wind.",
+          "Keep away from children and animals."
+        ]
+      }
+    ],
+    "recommended_fertilizers": [
+      {
+        "name": "Potassium nitrate",
+        "purpose": "Support plant recovery and growth.",
+        "dosage": "Apply according to label and soil test.",
+        "application_method": "Foliar or soil application depending on product."
+      },
+      {
+        "name": "Calcium nitrate",
+        "purpose": "Support plant recovery and growth.",
+        "dosage": "Apply according to label and soil test.",
+        "application_method": "Foliar or soil application depending on product."
+      }
+    ],
+    "organic_control": [
+      "Remove infected leaves.",
+      "Improve air circulation.",
+      "Use neem oil or approved biological products where appropriate."
+    ],
+    "preventive_measures": [
+      "Use disease-free seedlings.",
+      "Rotate crops.",
+      "Avoid overhead irrigation.",
+      "Monitor plants weekly."
+    ],
+    "recovery_tips": [
+      "Remove severely affected plants if necessary.",
+      "Maintain balanced irrigation and nutrition."
+    ]
+  },
+  {
+    "crop": "Tomato",
+    "disease": "Leaf Mold",
+    "scientific_name": "Passalora fulva",
+    "severity": "Medium",
+    "life_stage": [
+      "Seedling",
+      "Vegetative",
+      "Flowering",
+      "Fruiting"
+    ],
+    "symptoms": [
+      "Yellow patches",
+      "Olive-green mold"
+    ],
+    "causes": [
+      "High humidity",
+      "Poor ventilation"
+    ],
+    "recommended_pesticides": [
+      {
+        "name": "Azoxystrobin",
+        "dosage": "Follow product label and local agricultural recommendations.",
+        "application_method": "Foliar spray unless label states otherwise.",
+        "frequency": "As directed on label.",
+        "how_to_use": [
+          "Read label before use.",
+          "Mix at recommended rate.",
+          "Spray evenly over affected foliage.",
+          "Wear PPE."
+        ],
+        "precautions": [
+          "Observe pre-harvest interval.",
+          "Avoid spraying during strong wind.",
+          "Keep away from children and animals."
+        ]
+      },
+      {
+        "name": "Chlorothalonil",
+        "dosage": "Follow product label and local agricultural recommendations.",
+        "application_method": "Foliar spray unless label states otherwise.",
+        "frequency": "As directed on label.",
+        "how_to_use": [
+          "Read label before use.",
+          "Mix at recommended rate.",
+          "Spray evenly over affected foliage.",
+          "Wear PPE."
+        ],
+        "precautions": [
+          "Observe pre-harvest interval.",
+          "Avoid spraying during strong wind.",
+          "Keep away from children and animals."
+        ]
+      }
+    ],
+    "recommended_fertilizers": [
+      {
+        "name": "NPK 19:19:19",
+        "purpose": "Support plant recovery and growth.",
+        "dosage": "Apply according to label and soil test.",
+        "application_method": "Foliar or soil application depending on product."
+      },
+      {
+        "name": "Micronutrients",
+        "purpose": "Support plant recovery and growth.",
+        "dosage": "Apply according to label and soil test.",
+        "application_method": "Foliar or soil application depending on product."
+      }
+    ],
+    "organic_control": [
+      "Remove infected leaves.",
+      "Improve air circulation.",
+      "Use neem oil or approved biological products where appropriate."
+    ],
+    "preventive_measures": [
+      "Use disease-free seedlings.",
+      "Rotate crops.",
+      "Avoid overhead irrigation.",
+      "Monitor plants weekly."
+    ],
+    "recovery_tips": [
+      "Remove severely affected plants if necessary.",
+      "Maintain balanced irrigation and nutrition."
+    ]
+  },
+  {
+    "crop": "Tomato",
+    "disease": "Septoria Leaf Spot",
+    "scientific_name": "Septoria lycopersici",
+    "severity": "Medium",
+    "life_stage": [
+      "Seedling",
+      "Vegetative",
+      "Flowering",
+      "Fruiting"
+    ],
+    "symptoms": [
+      "Tiny circular spots",
+      "Yellow leaves"
+    ],
+    "causes": [
+      "Fungal spores",
+      "Wet foliage"
+    ],
+    "recommended_pesticides": [
+      {
+        "name": "Mancozeb",
+        "dosage": "Follow product label and local agricultural recommendations.",
+        "application_method": "Foliar spray unless label states otherwise.",
+        "frequency": "As directed on label.",
+        "how_to_use": [
+          "Read label before use.",
+          "Mix at recommended rate.",
+          "Spray evenly over affected foliage.",
+          "Wear PPE."
+        ],
+        "precautions": [
+          "Observe pre-harvest interval.",
+          "Avoid spraying during strong wind.",
+          "Keep away from children and animals."
+        ]
+      },
+      {
+        "name": "Copper hydroxide",
+        "dosage": "Follow product label and local agricultural recommendations.",
+        "application_method": "Foliar spray unless label states otherwise.",
+        "frequency": "As directed on label.",
+        "how_to_use": [
+          "Read label before use.",
+          "Mix at recommended rate.",
+          "Spray evenly over affected foliage.",
+          "Wear PPE."
+        ],
+        "precautions": [
+          "Observe pre-harvest interval.",
+          "Avoid spraying during strong wind.",
+          "Keep away from children and animals."
+        ]
+      }
+    ],
+    "recommended_fertilizers": [
+      {
+        "name": "Calcium nitrate",
+        "purpose": "Support plant recovery and growth.",
+        "dosage": "Apply according to label and soil test.",
+        "application_method": "Foliar or soil application depending on product."
+      },
+      {
+        "name": "NPK 19:19:19",
+        "purpose": "Support plant recovery and growth.",
+        "dosage": "Apply according to label and soil test.",
+        "application_method": "Foliar or soil application depending on product."
+      }
+    ],
+    "organic_control": [
+      "Remove infected leaves.",
+      "Improve air circulation.",
+      "Use neem oil or approved biological products where appropriate."
+    ],
+    "preventive_measures": [
+      "Use disease-free seedlings.",
+      "Rotate crops.",
+      "Avoid overhead irrigation.",
+      "Monitor plants weekly."
+    ],
+    "recovery_tips": [
+      "Remove severely affected plants if necessary.",
+      "Maintain balanced irrigation and nutrition."
+    ]
+  },
+  {
+    "crop": "Tomato",
+    "disease": "Spider Mites",
+    "scientific_name": "Tetranychus urticae",
+    "severity": "High",
+    "life_stage": [
+      "Seedling",
+      "Vegetative",
+      "Flowering",
+      "Fruiting"
+    ],
+    "symptoms": [
+      "Yellow stippling",
+      "Fine webbing"
+    ],
+    "causes": [
+      "Hot dry weather"
+    ],
+    "recommended_pesticides": [
+      {
+        "name": "Abamectin",
+        "dosage": "Follow product label and local agricultural recommendations.",
+        "application_method": "Foliar spray unless label states otherwise.",
+        "frequency": "As directed on label.",
+        "how_to_use": [
+          "Read label before use.",
+          "Mix at recommended rate.",
+          "Spray evenly over affected foliage.",
+          "Wear PPE."
+        ],
+        "precautions": [
+          "Observe pre-harvest interval.",
+          "Avoid spraying during strong wind.",
+          "Keep away from children and animals."
+        ]
+      },
+      {
+        "name": "Spiromesifen",
+        "dosage": "Follow product label and local agricultural recommendations.",
+        "application_method": "Foliar spray unless label states otherwise.",
+        "frequency": "As directed on label.",
+        "how_to_use": [
+          "Read label before use.",
+          "Mix at recommended rate.",
+          "Spray evenly over affected foliage.",
+          "Wear PPE."
+        ],
+        "precautions": [
+          "Observe pre-harvest interval.",
+          "Avoid spraying during strong wind.",
+          "Keep away from children and animals."
+        ]
+      }
+    ],
+    "recommended_fertilizers": [
+      {
+        "name": "Seaweed extract",
+        "purpose": "Support plant recovery and growth.",
+        "dosage": "Apply according to label and soil test.",
+        "application_method": "Foliar or soil application depending on product."
+      },
+      {
+        "name": "Balanced NPK",
+        "purpose": "Support plant recovery and growth.",
+        "dosage": "Apply according to label and soil test.",
+        "application_method": "Foliar or soil application depending on product."
+      }
+    ],
+    "organic_control": [
+      "Remove infected leaves.",
+      "Improve air circulation.",
+      "Use neem oil or approved biological products where appropriate."
+    ],
+    "preventive_measures": [
+      "Use disease-free seedlings.",
+      "Rotate crops.",
+      "Avoid overhead irrigation.",
+      "Monitor plants weekly."
+    ],
+    "recovery_tips": [
+      "Remove severely affected plants if necessary.",
+      "Maintain balanced irrigation and nutrition."
+    ]
+  },
+  {
+    "crop": "Tomato",
+    "disease": "Target Spot",
+    "scientific_name": "Corynespora cassiicola",
+    "severity": "Medium",
+    "life_stage": [
+      "Seedling",
+      "Vegetative",
+      "Flowering",
+      "Fruiting"
+    ],
+    "symptoms": [
+      "Brown target-like lesions"
+    ],
+    "causes": [
+      "Warm humid weather"
+    ],
+    "recommended_pesticides": [
+      {
+        "name": "Azoxystrobin",
+        "dosage": "Follow product label and local agricultural recommendations.",
+        "application_method": "Foliar spray unless label states otherwise.",
+        "frequency": "As directed on label.",
+        "how_to_use": [
+          "Read label before use.",
+          "Mix at recommended rate.",
+          "Spray evenly over affected foliage.",
+          "Wear PPE."
+        ],
+        "precautions": [
+          "Observe pre-harvest interval.",
+          "Avoid spraying during strong wind.",
+          "Keep away from children and animals."
+        ]
+      },
+      {
+        "name": "Mancozeb",
+        "dosage": "Follow product label and local agricultural recommendations.",
+        "application_method": "Foliar spray unless label states otherwise.",
+        "frequency": "As directed on label.",
+        "how_to_use": [
+          "Read label before use.",
+          "Mix at recommended rate.",
+          "Spray evenly over affected foliage.",
+          "Wear PPE."
+        ],
+        "precautions": [
+          "Observe pre-harvest interval.",
+          "Avoid spraying during strong wind.",
+          "Keep away from children and animals."
+        ]
+      }
+    ],
+    "recommended_fertilizers": [
+      {
+        "name": "Potassium sulfate",
+        "purpose": "Support plant recovery and growth.",
+        "dosage": "Apply according to label and soil test.",
+        "application_method": "Foliar or soil application depending on product."
+      },
+      {
+        "name": "NPK 19:19:19",
+        "purpose": "Support plant recovery and growth.",
+        "dosage": "Apply according to label and soil test.",
+        "application_method": "Foliar or soil application depending on product."
+      }
+    ],
+    "organic_control": [
+      "Remove infected leaves.",
+      "Improve air circulation.",
+      "Use neem oil or approved biological products where appropriate."
+    ],
+    "preventive_measures": [
+      "Use disease-free seedlings.",
+      "Rotate crops.",
+      "Avoid overhead irrigation.",
+      "Monitor plants weekly."
+    ],
+    "recovery_tips": [
+      "Remove severely affected plants if necessary.",
+      "Maintain balanced irrigation and nutrition."
+    ]
+  },
+  {
+    "crop": "Tomato",
+    "disease": "Tomato Mosaic Virus",
+    "scientific_name": "ToMV",
+    "severity": "High",
+    "life_stage": [
+      "Seedling",
+      "Vegetative",
+      "Flowering",
+      "Fruiting"
+    ],
+    "symptoms": [
+      "Mosaic pattern",
+      "Leaf distortion"
+    ],
+    "causes": [
+      "Virus",
+      "Contaminated tools"
+    ],
+    "recommended_pesticides": [],
+    "recommended_fertilizers": [
+      {
+        "name": "Balanced NPK",
+        "purpose": "Support plant recovery and growth.",
+        "dosage": "Apply according to label and soil test.",
+        "application_method": "Foliar or soil application depending on product."
+      },
+      {
+        "name": "Micronutrients",
+        "purpose": "Support plant recovery and growth.",
+        "dosage": "Apply according to label and soil test.",
+        "application_method": "Foliar or soil application depending on product."
+      }
+    ],
+    "organic_control": [
+      "Remove infected leaves.",
+      "Improve air circulation.",
+      "Use neem oil or approved biological products where appropriate."
+    ],
+    "preventive_measures": [
+      "Use disease-free seedlings.",
+      "Rotate crops.",
+      "Avoid overhead irrigation.",
+      "Monitor plants weekly."
+    ],
+    "recovery_tips": [
+      "Remove severely affected plants if necessary.",
+      "Maintain balanced irrigation and nutrition."
+    ]
+  },
+  {
+    "crop": "Tomato",
+    "disease": "Tomato Yellow Leaf Curl Virus",
+    "scientific_name": "TYLCV",
+    "severity": "Very High",
+    "life_stage": [
+      "Seedling",
+      "Vegetative",
+      "Flowering",
+      "Fruiting"
+    ],
+    "symptoms": [
+      "Yellow curled leaves",
+      "Stunted growth"
+    ],
+    "causes": [
+      "Whiteflies",
+      "Virus"
+    ],
+    "recommended_pesticides": [
+      {
+        "name": "Control whiteflies with Imidacloprid (where registered)",
+        "dosage": "Follow product label and local agricultural recommendations.",
+        "application_method": "Foliar spray unless label states otherwise.",
+        "frequency": "As directed on label.",
+        "how_to_use": [
+          "Read label before use.",
+          "Mix at recommended rate.",
+          "Spray evenly over affected foliage.",
+          "Wear PPE."
+        ],
+        "precautions": [
+          "Observe pre-harvest interval.",
+          "Avoid spraying during strong wind.",
+          "Keep away from children and animals."
+        ]
+      }
+    ],
+    "recommended_fertilizers": [
+      {
+        "name": "Balanced NPK",
+        "purpose": "Support plant recovery and growth.",
+        "dosage": "Apply according to label and soil test.",
+        "application_method": "Foliar or soil application depending on product."
+      },
+      {
+        "name": "Micronutrients",
+        "purpose": "Support plant recovery and growth.",
+        "dosage": "Apply according to label and soil test.",
+        "application_method": "Foliar or soil application depending on product."
+      }
+    ],
+    "organic_control": [
+      "Remove infected leaves.",
+      "Improve air circulation.",
+      "Use neem oil or approved biological products where appropriate."
+    ],
+    "preventive_measures": [
+      "Use disease-free seedlings.",
+      "Rotate crops.",
+      "Avoid overhead irrigation.",
+      "Monitor plants weekly."
+    ],
+    "recovery_tips": [
+      "Remove severely affected plants if necessary.",
+      "Maintain balanced irrigation and nutrition."
+    ]
+  }
+]

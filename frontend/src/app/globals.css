@@ -96,3 +96,38 @@ body {
     text-wrap: balance;
   }
 }
+
+/* Completely hide Google Translate Top Banner, Frames, Tooltips, and Popups */
+.goog-te-banner-frame,
+.goog-te-banner,
+iframe.goog-te-banner-frame,
+.skiptranslate.goog-te-banner-frame,
+body > .skiptranslate,
+#goog-gt-tt,
+.goog-te-balloon-frame,
+.VIpgJd-yDbfB-eL91vf,
+.VIpgJd-ZGain-L91vf,
+.VIpgJd-yDbfB-srhpAc,
+div.skiptranslate,
+#goog-gt- {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  height: 0 !important;
+  width: 0 !important;
+  pointer-events: none !important;
+}
+
+body {
+  top: 0px !important;
+  position: static !important;
+}
+
+.goog-text-highlight {
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
+
+#google_translate_element {
+  display: none !important;
+}

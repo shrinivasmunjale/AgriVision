@@ -75,6 +75,14 @@ export const predictionsAPI = {
       headers: { Authorization: `Bearer ${token}` },
       responseType: 'blob',
     }),
+  deleteById: (id, token) =>
+    api.delete(`/predictions/${id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  clearAll: (token) =>
+    api.delete('/predictions/clear', {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
 }
 
 export const adminAPI = {
