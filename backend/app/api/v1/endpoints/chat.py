@@ -86,8 +86,8 @@ async def chat(request: ChatRequest):
     if not settings.AI_API_KEY:
         return {"reply": generate_knowledge_fallback(request.message)}
 
-    provider = (settings.AI_PROVIDER or "openai").strip().lower()
-    model = settings.AI_MODEL or ("gpt-4o-mini" if provider == "openai" else "gemini-1.5-flash")
+    provider = (settings.AI_PROVIDER or "gemini").strip().lower()
+    model = settings.AI_MODEL or ("gpt-4o-mini" if provider == "openai" else "gemini-flash-latest")
     history = request.history or []
 
     try:
@@ -100,27 +100,35 @@ async def chat(request: ChatRequest):
                 + history
                 + [{"role": "user", "content": request.message}],
             }
-            async with httpx.AsyncClient(timeout=15) as client:
+            async with httpx.AsyncClient(timeout=35.0) as client:
                 resp = await client.post(url, headers=headers, json=payload)
                 resp.raise_for_status()
                 data = resp.json()
             reply = data["choices"][0]["message"]["content"]
 
         else:  # gemini
-            url = (
-                "https://generativelanguage.googleapis.com/v1beta/models/"
-                f"{model}:generateContent?key={settings.AI_API_KEY}"
-            )
-            payload = {
-                "contents": [{"parts": [{"text": f"{SYSTEM_PROMPT}\n\nUser: {request.message}"}]}]
-            }
-            async with httpx.AsyncClient(timeout=15) as client:
-                resp = await client.post(url, json=payload)
-                resp.raise_for_status()
-                data = resp.json()
-            try:
-                reply = data["candidates"][0]["content"]["parts"][0]["text"]
-            except (KeyError, IndexError, TypeError):
+            models_to_try = [model, "gemini-flash-latest", "gemini-3.6-flash"]
+            reply = None
+
+            async with httpx.AsyncClient(timeout=35.0) as client:
+                for try_model in models_to_try:
+                    url = (
+                        "https://generativelanguage.googleapis.com/v1beta/models/"
+                        f"{try_model}:generateContent?key={settings.AI_API_KEY}"
+                    )
+                    payload = {
+                        "contents": [{"parts": [{"text": f"{SYSTEM_PROMPT}\n\nUser: {request.message}"}]}]
+                    }
+                    try:
+                        resp = await client.post(url, json=payload)
+                        if resp.status_code == 200:
+                            data = resp.json()
+                            reply = data["candidates"][0]["content"]["parts"][0]["text"]
+                            break
+                    except Exception as err:
+                        print(f"[CHAT] Gemini model {try_model} failed: {err}")
+
+            if not reply:
                 reply = generate_knowledge_fallback(request.message)
 
         return {"reply": reply.strip()}
