@@ -3,7 +3,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import desc
-from typing import List, Optional
+from typing import List, Optional, Dict
 import uuid
 from datetime import datetime
 
@@ -20,6 +20,8 @@ from app.schemas.prediction import (
     PredictionResponse, 
     AnalyzeRequest, 
     AnalyzeResponse,
+    IgnoredItem,
+    BatchReportRequest,
     RecommendationItem
 )
 from app.services.ml_inference import ml_service
@@ -82,35 +84,25 @@ async def analyze_images(
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Analyze uploaded images using ML inference service
-    and generate treatment recommendations
+    Analyze uploaded images using ML inference service, track ignored images with
+    explicit reasons, group valid results by disease, and return batch summary metrics.
     """
     if not request.image_urls:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="No image URLs provided"
         )
-    
-    # Call ML inference service
-    ml_predictions = await ml_service.predict_disease(request.image_urls)
-    
-    # Check if any prediction failed leaf detection or confidence threshold (<70%)
-    failed_preds = [p for p in ml_predictions if p.get("success") == False]
-    if failed_preds:
-        warning_msg = failed_preds[0].get(
-            "message", 
-            "⚠️ Invalid image for tomato leaf classification."
-        )
-        return AnalyzeResponse(
-            success=False,
-            predictions=[],
-            message=warning_msg,
-            warning=warning_msg
-        )
-    
+
+    total_uploaded = len(request.image_urls)
+
+    # Call ML inference service -> {valid_predictions, ignored_images}
+    ml_result = await ml_service.predict_disease(request.image_urls, request.filenames)
+    valid_preds = ml_result.get("valid_predictions") or []
+    ignored_preds = ml_result.get("ignored_images") or []
+
     predictions_response = []
-    
-    for ml_pred in ml_predictions:
+
+    for ml_pred in valid_preds:
         # Determine life stage based on input age or provided stage
         active_life_stage = recommendation_engine.determine_life_stage(
             crop_age_days=request.crop_age_days,
@@ -121,16 +113,16 @@ async def analyze_images(
         prediction = Prediction(
             id=str(uuid.uuid4()),
             user_id=current_user.id,
-            image_url=ml_pred["image_url"],
+            image_url=ml_pred.get("image_url", ""),
             disease_id=ml_pred.get("disease_id"),
-            confidence_score=ml_pred["confidence_score"],
+            confidence_score=ml_pred.get("confidence_score", 0.0),
             crop_age_days=request.crop_age_days,
             life_stage=active_life_stage
         )
         db.add(prediction)
         await db.flush()
-        
-        # Get disease info
+
+        # Get disease name
         disease_name = None
         if prediction.disease_id:
             disease_result = await db.execute(
@@ -139,17 +131,17 @@ async def analyze_images(
             disease = disease_result.scalars().first()
             if disease:
                 disease_name = disease.name
-        
+
         # Generate recommendations if disease detected
         recommendations_list = []
         if prediction.disease_id:
             recs = await recommendation_engine.get_recommendations(
-                prediction.disease_id, 
+                prediction.disease_id,
                 db,
                 crop_age_days=request.crop_age_days,
                 life_stage=request.life_stage
             )
-            
+
             # Save pesticide recommendations
             for pest_rec in recs["pesticides"]:
                 rec = Recommendation(
@@ -164,7 +156,7 @@ async def analyze_images(
                     pesticide_name=pest_rec["pesticide_name"],
                     similarity_score=pest_rec["similarity_score"]
                 ))
-            
+
             # Save fertilizer recommendations
             for fert_rec in recs["fertilizers"]:
                 rec = Recommendation(
@@ -179,28 +171,105 @@ async def analyze_images(
                     fertilizer_name=fert_rec["fertilizer_name"],
                     similarity_score=fert_rec["similarity_score"]
                 ))
-        
+
         predictions_response.append(PredictionResponse(
             id=prediction.id,
             user_id=prediction.user_id,
             image_url=prediction.image_url,
             disease_id=prediction.disease_id,
-            disease_name=disease_name,
+            disease_name=disease_name or ml_pred.get("disease_name"),
             confidence_score=prediction.confidence_score,
             crop_age_days=prediction.crop_age_days,
             life_stage=prediction.life_stage,
             created_at=prediction.created_at,
             recommendations=recommendations_list,
-            disease_details=recommendation_engine.get_disease_knowledge(disease_name)
+            disease_details=recommendation_engine.get_disease_knowledge(disease_name or ml_pred.get("disease_name"))
         ))
-    
+
     await db.commit()
-    
+
+    # Build disease summary + healthy/infected counts from valid predictions
+    disease_summary: Dict[str, List[str]] = {}
+    healthy = 0
+    infected = 0
+    for ml_pred, pred_resp in zip(valid_preds, predictions_response):
+        name = pred_resp.disease_name or ml_pred.get("disease_name") or "Unknown"
+        fname = ml_pred.get("filename") or "image"
+        disease_summary.setdefault(name, []).append(fname)
+        if pred_resp.disease_id == 1 or ("healthy" in name.lower()):
+            healthy += 1
+        else:
+            infected += 1
+
+    ignored_images = [
+        IgnoredItem(
+            filename=item.get("filename") or "image",
+            reason=item.get("reason") or "Invalid image"
+        )
+        for item in ignored_preds
+    ]
+
+    processed = len(predictions_response)
+    ignored = len(ignored_images)
+
     return AnalyzeResponse(
         predictions=predictions_response,
-        message=f"Successfully analyzed {len(predictions_response)} images"
+        valid_predictions=predictions_response,
+        ignored_images=ignored_images,
+        disease_summary=disease_summary,
+        total_uploaded=total_uploaded,
+        processed=processed,
+        ignored=ignored,
+        healthy=healthy,
+        infected=infected,
+        message=(
+            f"Batch analysis complete: {processed} valid, {ignored} ignored, "
+            f"{healthy} healthy, {infected} infected out of {total_uploaded} images."
+        )
     )
 
+@router.post("/report/batch")
+async def generate_batch_report(
+    request: BatchReportRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Generate a batch PDF report covering all detected diseases from a scan batch.
+    """
+    user_data = {
+        "name": current_user.name,
+        "email": current_user.email,
+        "farm_name": current_user.farm_name or "N/A"
+    }
+
+    batch_data = {
+        "total_uploaded": request.total_uploaded,
+        "processed": request.processed,
+        "ignored": request.ignored,
+        "healthy": request.healthy,
+        "infected": request.infected,
+        "disease_summary": request.disease_summary,
+        "disease_imgs": list(request.disease_summary.keys()),
+        "ignored_images": [
+            {"filename": item.filename, "reason": item.reason}
+            for item in request.ignored_images
+        ],
+        "valid_predictions": request.valid_predictions or request.predictions or [],
+    }
+
+    pdf_buffer = pdf_generator.generate_batch_report(
+        user_data=user_data,
+        batch_data=batch_data
+    )
+
+    return StreamingResponse(
+        pdf_buffer,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": "attachment; filename=agrivision_batch_report.pdf"
+        }
+    )
 @router.get("", response_model=List[PredictionResponse])
 async def get_predictions(
     skip: int = 0,
@@ -503,7 +572,8 @@ async def generate_pdf_report(
     # Prediction data
     prediction_data = {
         "confidence_score": prediction.confidence_score,
-        "created_at": prediction.created_at.strftime("%B %d, %Y %I:%M %p")
+        "created_at": prediction.created_at.strftime("%B %d, %Y %I:%M %p"),
+        "image_url": getattr(prediction, "image_url", None)
     }
     
     # Generate PDF

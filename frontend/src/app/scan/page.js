@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { predictionsAPI } from '@/lib/api'
 import Layout from '@/components/Layout'
-import { Upload, X, Loader, AlertTriangle, Camera as CameraIcon, Sparkles, Leaf } from 'lucide-react'
+import { Upload, X, Loader, AlertTriangle, Camera as CameraIcon, Sparkles, Leaf, Download } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useI18n } from '@/contexts/I18nContext'
 
@@ -21,7 +21,15 @@ export default function ScanPage() {
   const [analyzing, setAnalyzing] = useState(false)
   const [error, setError] = useState('')
   const [dragActive, setDragActive] = useState(false)
+  const [results, setResults] = useState(null)
   const cameraInputRef = useRef(null)
+
+  const metricTone = {
+    default: 'bg-surface-card border-border-subtle text-text-primary',
+    green: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300',
+    amber: 'bg-amber-500/10 border-amber-500/30 text-amber-300',
+    red: 'bg-red-500/10 border-red-500/30 text-red-300',
+  }
 
   useEffect(() => {
     if (!loading && !user) {
@@ -89,6 +97,7 @@ export default function ScanPage() {
 
     setUploading(true)
     setError('')
+    setResults(null)
 
     try {
       const token = await getAccessToken()
@@ -105,36 +114,56 @@ export default function ScanPage() {
       setAnalyzing(true)
 
       const analyzeResponse = await predictionsAPI.analyze(
-        { image_urls: imageUrls },
+        {
+          image_urls: imageUrls,
+          filenames: files.map((f) => f.name || 'image'),
+        },
         token
       )
 
       setAnalyzing(false)
 
-      // Handle validation warning (no leaf detected or confidence < 70%)
-      if (analyzeResponse.data?.success === false) {
-        const warningMsg = analyzeResponse.data?.warning || analyzeResponse.data?.message || '⚠️ Invalid image for tomato leaf classification.'
-        setError(warningMsg)
-        return
-      }
+      const data = analyzeResponse.data
+      setResults(data)
 
       setFiles([])
       setPreviews([])
-      
+
       // Invalidate React Query cache so fresh data is immediately displayed
       await queryClient.invalidateQueries({ queryKey: ['predictions'] })
       await queryClient.invalidateQueries({ queryKey: ['all-predictions'] })
-
-      const newPredictions = analyzeResponse.data?.predictions
-      if (newPredictions && newPredictions.length > 0) {
-        router.push(`/history/${newPredictions[0].id}`)
-      } else {
-        router.push('/history')
-      }
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to analyze images')
       setUploading(false)
       setAnalyzing(false)
+    }
+  }
+
+  const handleDownloadReport = async () => {
+    if (!results) return
+    setError('')
+    try {
+      const token = await getAccessToken()
+      const payload = {
+        total_uploaded: results.total_uploaded || 0,
+        processed: results.processed || 0,
+        ignored: results.ignored || 0,
+        healthy: results.healthy || 0,
+        infected: results.infected || 0,
+        disease_summary: results.disease_summary || {},
+        ignored_images: results.ignored_images || [],
+        valid_predictions: results.valid_predictions || results.predictions || [],
+      }
+      const resp = await predictionsAPI.downloadBatchReport(payload, token)
+      const blob = new Blob([resp.data], { type: 'application/pdf' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = 'agrivision_batch_report.pdf'
+      link.click()
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Failed to download report')
     }
   }
 
@@ -288,12 +317,116 @@ export default function ScanPage() {
                   </>
                 ) : (
                   <>
-                    <Sparkles className="w-6 h-6 text-emerald-100 animate-pulse" />
+                    {/* <Sparkles className="w-6 h-6 text-emerald-100 animate-pulse" /> */}
                     <span>{t('scan.analyze')}</span>
-                    <Leaf className="w-5 h-5 text-emerald-100" />
+                    {/* <Leaf className="w-5 h-5 text-emerald-100" /> */}
                   </>
                 )}
               </button>
+            </motion.div>
+          )}
+
+          {/* Batch Results Section */}
+          {results && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mt-8 bg-surface-card rounded-2xl p-6 border border-border-subtle shadow-xl"
+            >
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                <h2 className="text-2xl font-bold text-text-primary">Batch Analysis Results</h2>
+                <div className="flex flex-wrap gap-3">
+                  <button
+                    onClick={handleDownloadReport}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary-400 text-white font-semibold text-sm hover:bg-primary-500 transition-colors"
+                  >
+                    <Download className="w-4 h-4" /> Download PDF Report
+                  </button>
+                  <button
+                    onClick={() => setResults(null)}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-border-subtle text-text-secondary font-semibold text-sm hover:border-primary-400/50 transition-colors"
+                  >
+                    Scan Again
+                  </button>
+                </div>
+              </div>
+
+              {/* Metrics Bar */}
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+                {[
+                  { label: 'Total Uploaded', value: results.total_uploaded, tone: 'default' },
+                  { label: 'Processed', value: results.processed, tone: 'green' },
+                  { label: 'Ignored', value: results.ignored, tone: 'amber' },
+                  { label: 'Healthy', value: results.healthy, tone: 'green' },
+                  { label: 'Infected', value: results.infected, tone: 'red' },
+                ].map((m) => (
+                  <div key={m.label} className={`p-3 rounded-2xl border text-center ${metricTone[m.tone]}`}>
+                    <div className="text-2xl font-bold">{m.value ?? 0}</div>
+                    <div className="text-xs font-medium mt-1 opacity-80">{m.label}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Grouped Disease View */}
+              {Object.keys(results.disease_summary || {}).length > 0 && (
+                <div className="mb-6">
+                  <h3 className="text-lg font-semibold text-text-primary mb-4">Detection Summary</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {Object.entries(results.disease_summary).map(([disease, files]) => {
+                      const isHealthy = /healthy/i.test(disease)
+                      return (
+                        <div
+                          key={disease}
+                          className={`rounded-2xl p-4 border ${
+                            isHealthy
+                              ? 'bg-emerald-500/10 border-emerald-500/30'
+                              : 'bg-red-500/5 border-red-500/20'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="font-semibold text-text-primary">{disease}</span>
+                            <span
+                              className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
+                                isHealthy
+                                  ? 'bg-emerald-500/20 text-emerald-300'
+                                  : 'bg-red-500/20 text-red-300'
+                              }`}
+                            >
+                              {files.length}
+                            </span>
+                          </div>
+                          <ul className="space-y-1">
+                            {files.map((f, i) => (
+                              <li key={i} className="text-sm text-text-secondary truncate">• {f}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Ignored Images */}
+              {results.ignored_images && results.ignored_images.length > 0 && (
+                <div>
+                  <h3 className="text-lg font-semibold text-text-primary mb-4">Ignored Images</h3>
+                  <div className="space-y-2">
+                    {results.ignored_images.map((item, i) => (
+                      <div
+                        key={i}
+                        className="flex items-start gap-3 p-3 rounded-xl border border-amber-500/30 bg-amber-500/10"
+                      >
+                        <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+                        <div>
+                          <div className="text-sm font-semibold text-amber-200">{item.filename}</div>
+                          <div className="text-sm text-amber-300/80">{item.reason}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </motion.div>
           )}
 

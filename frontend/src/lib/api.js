@@ -75,6 +75,11 @@ export const predictionsAPI = {
       headers: { Authorization: `Bearer ${token}` },
       responseType: 'blob',
     }),
+  downloadBatchReport: (data, token) =>
+    api.post('/predictions/report/batch', data, {
+      headers: { Authorization: `Bearer ${token}` },
+      responseType: 'blob',
+    }),
   deleteById: (id, token) =>
     api.delete(`/predictions/${id}`, {
       headers: { Authorization: `Bearer ${token}` },

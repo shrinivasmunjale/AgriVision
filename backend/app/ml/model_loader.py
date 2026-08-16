@@ -249,34 +249,53 @@ class PyTorchModelLoader:
             image = Image.open(image_url).convert("RGB")
         return image
 
-    async def predict_image(self, image_url: str) -> Dict:
+    async def predict_image(self, image_url: str, filename: Optional[str] = None) -> Dict:
         """
         Run two-stage pipeline:
-        1. Run YOLOv8 detection. If no leaf, return error message.
-        2. Run EfficientNetB0 classification. If confidence < 70%, return error message.
+        1. Run YOLOv8 detection. If no leaf, return an ignored result with reason.
+        2. Run EfficientNetB0 classification. If confidence < 70%, return ignored result.
+
+        Returns a normalized dict:
+            valid  -> {"status": "valid", "disease_id", "disease_name", "confidence_score",
+                        "image_url", "filename", "cropped_image"}
+            ignored-> {"status": "ignored", "reason", "image_url", "filename", "confidence_score"}
         """
         if not self.is_ready():
             raise RuntimeError("PyTorch model is not loaded.")
 
         import torch
 
-        image = await self._fetch_image(image_url)
-        
+        display_name = self._derive_filename(image_url, filename)
+
+        # Fetch image with explicit error handling -> "Corrupted or invalid image"
+        try:
+            image = await self._fetch_image(image_url)
+        except Exception as e:
+            print(f"[WARNING] Failed to fetch image {image_url}: {e}")
+            return {
+                "status": "ignored",
+                "reason": "Corrupted or invalid image",
+                "image_url": image_url,
+                "filename": display_name,
+                "confidence_score": 0.0,
+            }
+
         # Step 5 & 6: First run YOLO detection. If YOLO does not detect any tomato leaf, DO NOT call EfficientNet.
         try:
             from app.ml.yolo_detector import yolo_leaf_detector
-            has_leaf, cropped_image, leaf_conf = yolo_leaf_detector.detect_leaf(image)
+            has_leaf, cropped_image, leaf_conf, leaf_reason = yolo_leaf_detector.detect_leaf(image, conf_threshold=0.50)
         except Exception as e:
             print(f"[WARNING] YOLO leaf detection error: {e}")
-            has_leaf, cropped_image, leaf_conf = True, image, 1.0
+            has_leaf, cropped_image, leaf_conf, leaf_reason = True, image, 1.0, None
 
-        # Step 7: Return error response if no tomato leaf detected
+        # Step 7: Return ignored response if no tomato leaf detected
         if not has_leaf or cropped_image is None:
             return {
-                "success": False,
-                "message": "⚠️ No tomato leaf detected. Please upload a clear image containing a tomato leaf.",
+                "status": "ignored",
+                "reason": leaf_reason or "No tomato leaf detected",
                 "image_url": image_url,
-                "confidence_score": 0.0
+                "filename": display_name,
+                "confidence_score": round(float(leaf_conf or 0.0), 4)
             }
 
         # Step 6: If leaf detected, classify with EfficientNetB0
@@ -284,7 +303,7 @@ class PyTorchModelLoader:
 
         with torch.no_grad():
             outputs = self.model(input_tensor)
-            
+
             if isinstance(outputs, dict):
                 outputs = outputs.get("out", outputs.get("logits", outputs))
             elif isinstance(outputs, (tuple, list)):
@@ -299,9 +318,10 @@ class PyTorchModelLoader:
         # Step 9: If EfficientNet confidence is below 70%, return low confidence warning
         if confidence < 0.70:
             return {
-                "success": False,
-                "message": "⚠️ Prediction confidence is too low. Please upload a clearer image of a single tomato leaf.",
+                "status": "ignored",
+                "reason": "Disease confidence too low",
                 "image_url": image_url,
+                "filename": display_name,
                 "confidence_score": confidence
             }
 
@@ -311,29 +331,56 @@ class PyTorchModelLoader:
         disease_name = label_info.get("name", f"Class {class_idx}")
 
         return {
-            "success": True,
+            "status": "valid",
             "image_url": image_url,
+            "filename": display_name,
             "disease_id": disease_id,
             "disease_name": disease_name,
-            "confidence_score": confidence
+            "confidence_score": confidence,
+            "cropped_image": cropped_image,  # debug/inspection only (not persisted)
         }
 
-    async def predict_batch(self, image_urls: List[str]) -> List[Dict]:
-        """Run batch inference for multiple image URLs."""
-        results = []
-        for url in image_urls:
+    async def predict_batch(self, image_urls: List[str], filenames: Optional[List[str]] = None) -> Dict:
+        """
+        Run batch inference for multiple image URLs, independently, and aggregate:
+            {"valid_predictions": [...], "ignored_images": [...]}
+        """
+        valid_predictions = []
+        ignored_images = []
+        for idx, url in enumerate(image_urls):
+            fname = filenames[idx] if filenames and idx < len(filenames) else None
             try:
-                res = await self.predict_image(url)
-                results.append(res)
+                res = await self.predict_image(url, filename=fname)
             except Exception as e:
                 print(f"[ERROR] Error predicting image {url}: {e}")
-                results.append({
-                    "success": False,
-                    "message": f"⚠️ Error processing image: {e}",
+                res = {
+                    "status": "ignored",
+                    "reason": f"Error processing image: {e}",
                     "image_url": url,
+                    "filename": self._derive_filename(url, fname),
                     "confidence_score": 0.0
-                })
-        return results
+                }
+            if res.get("status") == "valid":
+                valid_predictions.append(res)
+            else:
+                ignored_images.append(res)
+        return {
+            "valid_predictions": valid_predictions,
+            "ignored_images": ignored_images,
+        }
+
+    @staticmethod
+    def _derive_filename(image_url: str, filename: Optional[str] = None) -> str:
+        """Return a display filename for an image URL, preferring an explicit filename."""
+        if filename and str(filename).strip():
+            return str(filename)
+        try:
+            from urllib.parse import urlparse
+            base = os.path.basename(urlparse(image_url).path)
+            return base or "image"
+        except Exception:
+            base = os.path.basename(str(image_url))
+            return base or "image"
 
 
 pytorch_model_loader = PyTorchModelLoader()

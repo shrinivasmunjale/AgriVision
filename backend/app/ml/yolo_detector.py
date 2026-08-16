@@ -56,34 +56,57 @@ class YOLOLeafDetector:
             print(f"[ERROR] Failed to load YOLOv8 model from {found_path}: {e}")
             self.is_ready = False
 
-    def detect_leaf(self, image: Image.Image, conf_threshold: float = 0.25) -> Tuple[bool, Optional[Image.Image], float]:
+    def detect_leaf(
+        self,
+        image: Image.Image,
+        conf_threshold: float = 0.50,
+    ) -> Tuple[bool, Optional[Image.Image], float, Optional[str]]:
         """
         Detect tomato leaf in PIL Image and crop the detected region.
-        
+
         Returns:
-            Tuple[has_leaf (bool), cropped_image (Optional[Image.Image]), leaf_confidence (float)]
+            Tuple[
+                has_leaf (bool),
+                cropped_image (Optional[Image.Image]),
+                leaf_confidence (float),
+                reason (Optional[str])  # set when no valid leaf is returned
+            ]
         """
         if not self.is_ready or self.model is None:
             # Fallback if YOLO model is unavailable
-            return True, image, 1.0
+            return True, image, 1.0, None
 
         try:
-            # Step 5: First run YOLO detection
-            results = self.model(image, conf=conf_threshold, verbose=False)
+            # Step 5: First run YOLO detection.
+            # Run at a lower internal confidence so candidate boxes survive; we apply the
+            # business threshold ourselves. This lets us distinguish "no leaf" from
+            # "leaf present but below threshold".
+            internal_conf = min(conf_threshold, 0.20)
+            results = self.model(image, conf=internal_conf, verbose=False)
             if not results or len(results) == 0:
-                return False, None, 0.0
+                return False, None, 0.0, "No tomato leaf detected"
 
             boxes = results[0].boxes
             if boxes is None or len(boxes) == 0:
                 print("[YOLOv8] No tomato leaf detected in uploaded image.")
-                return False, None, 0.0
+                return False, None, 0.0, "No tomato leaf detected"
 
             # Step 8: If YOLO detects multiple objects, select only the leaf with the highest confidence
-            confidences = boxes.conf.cpu().numpy()
-            best_idx = int(confidences.argmax())
-            best_conf = float(confidences[best_idx])
-            best_box = boxes.xyxy[best_idx].cpu().numpy()  # [xmin, ymin, xmax, ymax]
-            xmin, ymin, xmax, ymax = map(int, best_box)
+            try:
+                conf_tensor = boxes.conf.cpu()
+                best_idx = int(conf_tensor.argmax().item())
+                best_conf = float(conf_tensor[best_idx].item())
+                best_box_tensor = boxes.xyxy[best_idx].cpu()
+                xmin, ymin, xmax, ymax = map(int, best_box_tensor.tolist())
+            except Exception:
+                confidences = boxes.conf.cpu().numpy()
+                best_idx = int(confidences.argmax())
+                best_conf = float(confidences[best_idx])
+                best_box = boxes.xyxy[best_idx].cpu().numpy()
+                xmin, ymin, xmax, ymax = map(int, best_box)
+
+            if best_conf < conf_threshold:
+                return False, None, best_conf, "Detection confidence too low"
 
             # Add 15% margin padding around the leaf bounding box for expanded leaf context
             box_w = xmax - xmin
@@ -108,15 +131,15 @@ class YOLOLeafDetector:
             except Exception:
                 pass
 
-            return True, cropped_image, best_conf
+            return True, cropped_image, best_conf, None
 
         except Exception as e:
             print(f"[WARNING] Error during YOLO leaf detection: {e}.")
-            return False, None, 0.0
+            return False, None, 0.0, "No tomato leaf detected"
 
-    def detect_and_crop(self, image: Image.Image, conf_threshold: float = 0.25) -> Image.Image:
+    def detect_and_crop(self, image: Image.Image, conf_threshold: float = 0.50) -> Image.Image:
         """Backward compatibility wrapper method."""
-        has_leaf, cropped_img, _ = self.detect_leaf(image, conf_threshold)
+        has_leaf, cropped_img, _, _ = self.detect_leaf(image, conf_threshold)
         return cropped_img if (has_leaf and cropped_img is not None) else image
 
 

@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional, List, Dict
 from datetime import datetime
 
 class RecommendationItem(BaseModel):
@@ -41,11 +41,35 @@ class PredictionResponse(BaseModel):
 
 class AnalyzeRequest(BaseModel):
     image_urls: List[str]
+    filenames: Optional[List[str]] = None
     crop_age_days: Optional[int] = None
     life_stage: Optional[str] = None
 
+class IgnoredItem(BaseModel):
+    filename: str
+    reason: str
+
 class AnalyzeResponse(BaseModel):
     success: bool = True
+    valid_predictions: List[PredictionResponse] = []
     predictions: List[PredictionResponse] = []
+    ignored_images: List[IgnoredItem] = []
+    disease_summary: Dict[str, List[str]] = {}
+    total_uploaded: int = 0
+    processed: int = 0
+    ignored: int = 0
+    healthy: int = 0
+    infected: int = 0
     message: str
     warning: Optional[str] = None
+
+class BatchReportRequest(BaseModel):
+    total_uploaded: int = 0
+    processed: int = 0
+    ignored: int = 0
+    healthy: int = 0
+    infected: int = 0
+    disease_summary: Dict[str, List[str]] = {}
+    ignored_images: List[IgnoredItem] = []
+    valid_predictions: Optional[List[Dict]] = []
+    predictions: Optional[List[Dict]] = []
