@@ -236,18 +236,44 @@ class PyTorchModelLoader:
         return self.is_torch_available and self.model is not None
 
     async def _fetch_image(self, image_url: str):
-        """Download image bytes from HTTP URL or load from disk if local path."""
+        """Download image bytes from HTTP URL or load directly from disk if local path."""
         from PIL import Image
 
-        if image_url.startswith("http://") or image_url.startswith("https://"):
-            async with httpx.AsyncClient(timeout=15.0) as client:
-                resp = await client.get(image_url)
+        path_str = str(image_url).strip()
+
+        # 1. Check if the URL points to a local upload (/uploads/filename.jpg)
+        if "/uploads/" in path_str:
+            filename = path_str.split("/uploads/")[-1]
+            candidates = [
+                Path("uploads") / filename,
+                Path("backend/uploads") / filename,
+                Path(__file__).resolve().parents[2] / "uploads" / filename,
+            ]
+            for cand in candidates:
+                if cand.exists():
+                    print(f"[ML] Loaded image directly from disk: {cand}")
+                    return Image.open(cand).convert("RGB")
+
+        # 2. Check if path_str is a direct local file path
+        if not (path_str.startswith("http://") or path_str.startswith("https://")):
+            p = Path(path_str)
+            if p.exists():
+                return Image.open(p).convert("RGB")
+
+        # 3. HTTP download with fallback
+        try:
+            async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
+                resp = await client.get(path_str)
                 resp.raise_for_status()
                 image_bytes = resp.content
-            image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
-        else:
-            image = Image.open(image_url).convert("RGB")
-        return image
+            return Image.open(io.BytesIO(image_bytes)).convert("RGB")
+        except Exception as e:
+            print(f"[WARNING] Remote fetch failed for {path_str}: {e}. Checking local uploads fallback...")
+            filename = path_str.split("/")[-1]
+            for cand in [Path("uploads") / filename, Path("backend/uploads") / filename]:
+                if cand.exists():
+                    return Image.open(cand).convert("RGB")
+            raise e
 
     async def predict_image(self, image_url: str, filename: Optional[str] = None) -> Dict:
         """

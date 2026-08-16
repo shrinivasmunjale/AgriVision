@@ -95,3 +95,4 @@ reports/
 # Development/Training folders
 mywork/
 source/
+!backend/app/ml/best.pt
