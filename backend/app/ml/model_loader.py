@@ -238,8 +238,10 @@ class PyTorchModelLoader:
     async def _fetch_image(self, image_url: str):
         """Download image bytes from HTTP URL or load directly from disk if local path."""
         from PIL import Image
+        from urllib.parse import unquote
 
-        path_str = str(image_url).strip()
+        raw_url = str(image_url).strip()
+        path_str = unquote(raw_url)
 
         # 1. Check if the URL points to a local upload (/uploads/filename.jpg)
         if "/uploads/" in path_str:
@@ -262,13 +264,13 @@ class PyTorchModelLoader:
 
         # 3. HTTP download with fallback
         try:
-            async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
-                resp = await client.get(path_str)
+            async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
+                resp = await client.get(raw_url)
                 resp.raise_for_status()
                 image_bytes = resp.content
             return Image.open(io.BytesIO(image_bytes)).convert("RGB")
         except Exception as e:
-            print(f"[WARNING] Remote fetch failed for {path_str}: {e}. Checking local uploads fallback...")
+            print(f"[WARNING] Remote fetch failed for {raw_url} ({e}). Checking local uploads fallback...")
             filename = path_str.split("/")[-1]
             for cand in [Path("uploads") / filename, Path("backend/uploads") / filename]:
                 if cand.exists():
@@ -297,10 +299,10 @@ class PyTorchModelLoader:
         try:
             image = await self._fetch_image(image_url)
         except Exception as e:
-            print(f"[WARNING] Failed to fetch image {image_url}: {e}")
+            print(f"[ERROR] Failed to fetch image {image_url}: {e}")
             return {
                 "status": "ignored",
-                "reason": "Corrupted or invalid image",
+                "reason": f"Corrupted or invalid image: {e}",
                 "image_url": image_url,
                 "filename": display_name,
                 "confidence_score": 0.0,
