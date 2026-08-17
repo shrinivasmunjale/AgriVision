@@ -115,6 +115,18 @@ export const adminAPI = {
     api.get('/admin/analytics', {
       headers: { Authorization: `Bearer ${token}` },
     }),
+  getAllUsers: (token) =>
+    api.get('/admin/users', {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  getAllPredictions: (token) =>
+    api.get('/admin/predictions', {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  getContactMessages: (token) =>
+    api.get('/admin/contact-messages', {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
 }
 
 export default api

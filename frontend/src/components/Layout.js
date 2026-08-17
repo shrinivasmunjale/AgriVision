@@ -40,12 +40,16 @@ export default function Layout({ children }) {
 
   const navItems = [
     { icon: Home, label: 'Home', href: '/dashboard' },
-    { icon: Camera, label: 'Scan', href: '/scan' },
-    { icon: History, label: 'History', href: '/history' },
+    ...(isAdmin ? [] : [
+      { icon: Camera, label: 'Scan', href: '/scan' },
+      { icon: History, label: 'History', href: '/history' },
+    ]),
     ...(isAdmin ? [{ icon: BarChart3, label: 'Admin', href: '/admin' }] : []),
-    { icon: Lightbulb, label: 'Tips', href: '/tips' },
-    { icon: HelpCircle, label: 'FAQ', href: '/faq' },
-    { icon: MessageCircle, label: 'Contact', href: '/contact' },
+    ...(isAdmin ? [] : [
+      { icon: Lightbulb, label: 'Tips', href: '/tips' },
+      { icon: HelpCircle, label: 'FAQ', href: '/faq' },
+      { icon: MessageCircle, label: 'Contact', href: '/contact' },
+    ]),
     { icon: Settings, label: 'Profile', href: '/profile' },
   ]
 

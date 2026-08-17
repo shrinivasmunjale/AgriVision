@@ -121,13 +121,15 @@ export default function DashboardPage() {
           transition={{ delay: 0.4 }}
           className="mb-8"
         >
-          <Link
-            href="/scan"
-            className="flex items-center justify-center gap-3 w-full py-4 bg-primary text-white rounded-full font-semibold hover:bg-primary-600 transition-colors"
-          >
-            <Camera className="w-5 h-5" />
-            Scan Tomato Leaves Now
-          </Link>
+          {profile?.role !== 'admin' && (
+            <Link
+              href="/scan"
+              className="flex items-center justify-center gap-3 w-full py-4 bg-primary text-white rounded-full font-semibold hover:bg-primary-600 transition-colors"
+            >
+              <Camera className="w-5 h-5" />
+              Scan Tomato Leaves Now
+            </Link>
+          )}
         </motion.div>
 
         {/* Drone Imagery Showcase */}

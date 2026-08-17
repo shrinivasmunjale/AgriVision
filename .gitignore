@@ -96,3 +96,5 @@ reports/
 mywork/
 source/
 !backend/app/ml/best.pt
+FIXES_COMPLETED.md
+FINAL_RENDER_SETUP.md

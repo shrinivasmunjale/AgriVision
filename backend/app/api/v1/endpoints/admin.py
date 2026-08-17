@@ -334,6 +334,83 @@ async def delete_fertilizer(
 
 # ==================== ANALYTICS ====================
 
+@router.get("/contact-messages")
+async def get_contact_messages(
+    current_user: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get all contact messages from farmers"""
+    from app.models.contact import ContactMessage
+    
+    result = await db.execute(
+        select(ContactMessage)
+        .order_by(desc(ContactMessage.created_at))
+    )
+    messages = result.scalars().all()
+    
+    return [
+        {
+            "id": msg.id,
+            "name": msg.name,
+            "email": msg.email,
+            "phone": msg.phone,
+            "message": msg.message,
+            "created_at": msg.created_at
+        }
+        for msg in messages
+    ]
+
+@router.get("/users")
+async def get_all_users(
+    current_user: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get all users"""
+    result = await db.execute(select(User))
+    users = result.scalars().all()
+    
+    return [
+        {
+            "id": user.id,
+            "name": user.name,
+            "email": user.email,
+            "role": user.role,
+            "farm_name": user.farm_name,
+            "phone": user.phone,
+            "created_at": user.created_at
+        }
+        for user in users
+    ]
+
+@router.get("/predictions")
+async def get_all_predictions(
+    current_user: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get all predictions with user information"""
+    result = await db.execute(
+        select(Prediction, User, Disease)
+        .join(User, Prediction.user_id == User.id)
+        .join(Disease, Prediction.disease_id == Disease.id, isouter=True)
+        .order_by(desc(Prediction.created_at))
+    )
+    
+    predictions = []
+    for pred, user, disease in result.all():
+        predictions.append({
+            "id": pred.id,
+            "image_url": pred.image_url,
+            "disease_id": pred.disease_id,
+            "disease_name": disease.name if disease else "Unknown",
+            "confidence_score": pred.confidence_score,
+            "user_id": pred.user_id,
+            "user_email": user.email,
+            "user_name": user.name,
+            "created_at": pred.created_at
+        })
+    
+    return predictions
+
 @router.get("/analytics")
 async def get_analytics(
     current_user: User = Depends(require_admin),

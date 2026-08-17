@@ -13,7 +13,7 @@ import Link from 'next/link'
 export default function AdminPage() {
   const { user, loading, getAccessToken, profile } = useAuth()
   const router = useRouter()
-  const [activeTab, setActiveTab] = useState('overview') // 'overview', 'users', 'predictions'
+  const [activeTab, setActiveTab] = useState('overview') // 'overview', 'users', 'predictions', 'messages'
 
   useEffect(() => {
     if (!loading && !user) {
@@ -51,6 +51,16 @@ export default function AdminPage() {
       return response.data
     },
     enabled: !!user && profile?.role === 'admin' && activeTab === 'predictions',
+  })
+
+  const { data: messagesData, isLoading: messagesLoading } = useQuery({
+    queryKey: ['admin-messages'],
+    queryFn: async () => {
+      const token = await getAccessToken()
+      const response = await adminAPI.getContactMessages(token)
+      return response.data
+    },
+    enabled: !!user && profile?.role === 'admin' && activeTab === 'messages',
   })
 
   if (loading || !user || !profile || profile.role !== 'admin') {
@@ -108,6 +118,16 @@ export default function AdminPage() {
               }`}
             >
               All Predictions
+            </button>
+            <button
+              onClick={() => setActiveTab('messages')}
+              className={`px-4 py-2 font-medium transition-colors whitespace-nowrap ${
+                activeTab === 'messages'
+                  ? 'text-primary-400 border-b-2 border-primary-400'
+                  : 'text-text-secondary hover:text-text-primary'
+              }`}
+            >
+              Contact Messages
             </button>
           </div>
 
@@ -388,6 +408,65 @@ export default function AdminPage() {
                 </div>
               ) : (
                 <p className="text-text-secondary text-center py-8">No predictions found</p>
+              )}
+            </motion.div>
+          )}
+
+          {/* Contact Messages Tab */}
+          {activeTab === 'messages' && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-surface-card rounded-2xl p-6 border border-border-subtle"
+            >
+              <h2 className="text-xl font-bold text-text-primary mb-4">Farmer Contact Messages</h2>
+              {messagesLoading ? (
+                <div className="text-center py-12">
+                  <div className="w-12 h-12 border-4 border-primary-400 border-t-transparent rounded-full animate-spin mx-auto"></div>
+                </div>
+              ) : messagesData && messagesData.length > 0 ? (
+                <div className="space-y-4">
+                  {messagesData.map((msg) => (
+                    <div key={msg.id} className="bg-surface-base rounded-xl p-4 border border-border-subtle">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-primary-400/20 flex items-center justify-center">
+                            <User className="w-5 h-5 text-primary-400" />
+                          </div>
+                          <div>
+                            <h3 className="text-text-primary font-semibold">{msg.name}</h3>
+                            <div className="flex items-center gap-3 text-text-secondary text-sm">
+                              <span className="flex items-center gap-1">
+                                <Mail className="w-3 h-3" />
+                                {msg.email}
+                              </span>
+                              {msg.phone && (
+                                <span className="flex items-center gap-1">
+                                  <Phone className="w-3 h-3" />
+                                  {msg.phone}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <span className="text-text-secondary text-xs">
+                          {new Date(msg.created_at).toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </span>
+                      </div>
+                      <div className="pl-13">
+                        <p className="text-text-primary whitespace-pre-wrap">{msg.message}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-text-secondary text-center py-8">No messages yet</p>
               )}
             </motion.div>
           )}
