@@ -14,6 +14,38 @@
 
 ---
 
+## 🔐 Fix User Authentication & Data Loss on Render
+
+### Why User Logins Fail After Some Time
+Render's free tier uses **ephemeral containers**. When your service goes idle for 15 minutes, Render spins down the server container. When a user sends a new request, a fresh container is created.
+With default SQLite (`agrivision.db`), all user registrations saved during server execution are wiped when the container restarts! This causes logged-out users to see "Wrong Password / Register" when they return.
+
+### How to Fix Permanently (Recommended Solution):
+
+#### **Option A: Add a Free Render PostgreSQL Database (Recommended)**
+1. Go to: **https://dashboard.render.com/**
+2. Click **"New +"** (top right) → Select **"PostgreSQL"**
+3. Name it: `agrivision-db` (select Free plan)
+4. Click **"Create Database"**
+5. Copy the **"Internal Database URL"** (starts with `postgres://...`)
+6. Go back to your **`agrivision2`** Web Service → **Environment** tab
+7. Add a new variable:
+   ```
+   Key:   DATABASE_URL
+   Value: <Paste your Internal Database URL here>
+   ```
+8. Click **"Save Changes"**.
+*Note: Our backend code automatically converts `postgres://` to `postgresql+asyncpg://` so it works instantly!*
+
+#### **Option B: Add a Persistent Disk (Alternative)**
+If keeping SQLite is preferred:
+1. In Render Dashboard for `agrivision2`, go to **Disks** (left sidebar).
+2. Click **"Add Disk"**.
+3. Name: `agrivision-data`, Mount Path: `/data`, Size: 1 GB.
+4. Save & Deploy. The backend automatically detects `/data` and stores SQLite safely on the persistent disk!
+
+---
+
 ## 🚀 ONE STEP LEFT - Set BACKEND_URL
 
 Go to Render and set just **ONE** environment variable:

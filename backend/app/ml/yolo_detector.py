@@ -5,15 +5,27 @@ from PIL import Image
 
 # Base directory paths
 ML_DIR = Path(__file__).parent
-PROJECT_ROOT = Path(__file__).resolve().parents[3]
-MYWORK_MODEL_DIR = PROJECT_ROOT / "mywork" / "models"
 
-# Candidate model paths for YOLOv8
+def _get_mywork_model_dir() -> Optional[Path]:
+    try:
+        current = Path(__file__).resolve().parent
+        for p in [current] + list(current.parents):
+            candidate = p / "mywork" / "models"
+            if candidate.is_dir():
+                return candidate
+    except Exception:
+        pass
+    return None
+
+MYWORK_MODEL_DIR = _get_mywork_model_dir()
+
+# Candidate model paths for YOLOv8 (prioritize ML_DIR inside backend)
 YOLO_MODEL_CANDIDATES = [
-    MYWORK_MODEL_DIR / "best.pt",
     ML_DIR / "best.pt",
     ML_DIR / "yolov8.pt",
 ]
+if MYWORK_MODEL_DIR:
+    YOLO_MODEL_CANDIDATES.append(MYWORK_MODEL_DIR / "best.pt")
 
 
 class YOLOLeafDetector:
@@ -33,18 +45,20 @@ class YOLOLeafDetector:
 
         found_path = None
         for path in YOLO_MODEL_CANDIDATES:
-            if path.exists():
+            if path and path.exists():
                 found_path = path
                 break
 
         if not found_path:
             # Search for any .pt file named best or yolo
-            pt_files = list(MYWORK_MODEL_DIR.glob("best*.pt")) + list(ML_DIR.glob("best*.pt"))
+            pt_files = list(ML_DIR.glob("best*.pt"))
+            if not pt_files and MYWORK_MODEL_DIR and MYWORK_MODEL_DIR.is_dir():
+                pt_files = list(MYWORK_MODEL_DIR.glob("best*.pt"))
             if pt_files:
                 found_path = pt_files[0]
 
         if not found_path:
-            print(f"[INFO] No YOLOv8 model file (best.pt) found in {MYWORK_MODEL_DIR} or {ML_DIR}.")
+            print(f"[INFO] No YOLOv8 model file (best.pt) found in {ML_DIR}.")
             return
 
         try:

@@ -22,11 +22,21 @@ MODEL_CANDIDATES = [
 # Also check for class_names.json in ML_DIR first
 CLASS_NAMES_FILE = ML_DIR / "class_names.json"
 
-# ----- True model data lives in the project's mywork/models folder -----
-PROJECT_ROOT = Path(__file__).resolve().parents[3]      # d:\AgriVision
-MYWORK_MODEL_DIR = PROJECT_ROOT / "mywork" / "models"
-MYWORK_MODEL_FILE = MYWORK_MODEL_DIR / "best_efficientnetb0.pth"
-MYWORK_CLASS_NAMES = MYWORK_MODEL_DIR / "class_names.json"
+# Safe lookup function for external mywork/models folder (local dev environment)
+def _get_mywork_model_dir() -> Optional[Path]:
+    try:
+        current = Path(__file__).resolve().parent
+        for p in [current] + list(current.parents):
+            candidate = p / "mywork" / "models"
+            if candidate.is_dir():
+                return candidate
+    except Exception:
+        pass
+    return None
+
+MYWORK_MODEL_DIR = _get_mywork_model_dir()
+MYWORK_MODEL_FILE = MYWORK_MODEL_DIR / "best_efficientnetb0.pth" if MYWORK_MODEL_DIR else None
+MYWORK_CLASS_NAMES = MYWORK_MODEL_DIR / "class_names.json" if MYWORK_MODEL_DIR else None
 
 # Display-name (lower-cased) -> AgriVision database disease_id mapping.
 DISEASE_ID_MAP = {
@@ -134,7 +144,7 @@ class PyTorchModelLoader:
             except Exception as e:
                 print(f"[WARNING] Failed to load class_names.json from ML_DIR: {e}")
         
-        if MYWORK_CLASS_NAMES.exists():
+        if MYWORK_CLASS_NAMES and MYWORK_CLASS_NAMES.exists():
             try:
                 with open(MYWORK_CLASS_NAMES, "r", encoding="utf-8") as f:
                     raw_names = json.load(f)
@@ -168,19 +178,19 @@ class PyTorchModelLoader:
                 print(f"[MODEL] Found deployed model at: {path}")
                 break
 
-        if found_path is None and MYWORK_MODEL_FILE.exists():
+        if found_path is None and MYWORK_MODEL_FILE and MYWORK_MODEL_FILE.exists():
             found_path = MYWORK_MODEL_FILE
             print(f"[MODEL] Found development model at: {MYWORK_MODEL_FILE}")
 
         if found_path is None:
             pt_files = list(ML_DIR.glob("*.pt")) + list(ML_DIR.glob("*.pth"))
-            if not pt_files and MYWORK_MODEL_DIR.is_dir():
+            if not pt_files and MYWORK_MODEL_DIR and MYWORK_MODEL_DIR.is_dir():
                 pt_files = list(MYWORK_MODEL_DIR.glob("*.pt")) + list(MYWORK_MODEL_DIR.glob("*.pth"))
             if pt_files:
                 found_path = pt_files[0]
 
         if not found_path:
-            print(f"[INFO] No PyTorch model file found in {ML_DIR} or {MYWORK_MODEL_DIR}.")
+            print(f"[INFO] No PyTorch model file found in {ML_DIR}.")
             return
 
         self.model_path = found_path

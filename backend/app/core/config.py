@@ -1,5 +1,6 @@
+from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import Field
+from pydantic import Field, field_validator
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
@@ -11,9 +12,31 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "AgriVision AI"
     API_V1_STR: str = "/api/v1"
 
-    # Database Configuration (SQLite default for easy deployment)
+    # Database Configuration (SQLite default for easy deployment, PostgreSQL supported)
     DATABASE_URL: str = "sqlite+aiosqlite:///./agrivision.db"
-    
+
+    @field_validator("DATABASE_URL", mode="before")
+    @classmethod
+    def assemble_db_connection(cls, v: str) -> str:
+        if not v or not isinstance(v, str):
+            v = "sqlite+aiosqlite:///./agrivision.db"
+        
+        # Render PostgreSQL uses postgres:// or postgresql:// -> convert to postgresql+asyncpg://
+        if v.startswith("postgres://"):
+            return v.replace("postgres://", "postgresql+asyncpg://", 1)
+        if v.startswith("postgresql://"):
+            return v.replace("postgresql://", "postgresql+asyncpg://", 1)
+        if v.startswith("sqlite://") and not v.startswith("sqlite+aiosqlite://"):
+            return v.replace("sqlite://", "sqlite+aiosqlite://", 1)
+            
+        # Check if Render persistent disk exists (/var/data or /data)
+        if "sqlite" in v and "./agrivision.db" in v:
+            for persistent_dir in ["/var/data", "/data"]:
+                if Path(persistent_dir).is_dir():
+                    return f"sqlite+aiosqlite:///{persistent_dir}/agrivision.db"
+                    
+        return v
+
     # Backend URL for image serving (defaults to localhost for development)
     BACKEND_URL: str = "http://localhost:8000"
 
