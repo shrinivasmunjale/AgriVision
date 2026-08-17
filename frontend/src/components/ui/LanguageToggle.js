@@ -15,12 +15,12 @@ export default function LanguageToggle({ className = '' }) {
       <button
         onClick={() => setOpen((o) => !o)}
         aria-label="Change language"
-        className="h-10 px-3.5 rounded-full flex items-center gap-2 bg-surface-card border border-border-subtle text-text-primary hover:border-primary-400/50 transition-colors text-sm font-medium shadow-sm"
+        className="h-10 px-2 sm:px-3.5 rounded-full flex items-center gap-1 sm:gap-2 bg-surface-card border border-border-subtle text-text-primary hover:border-primary-400/50 transition-colors text-sm font-medium shadow-sm"
       >
         <Languages className="w-4 h-4 text-primary-400" />
         <span className="font-semibold text-xs uppercase">{lang}</span>
         <span className="hidden sm:inline text-xs text-text-secondary">({currentOpt?.native})</span>
-        <ChevronDown className={`w-3.5 h-3.5 transition-transform ${open ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`w-3.5 h-3.5 transition-transform hidden sm:block ${open ? 'rotate-180' : ''}`} />
       </button>
 
       {open && (

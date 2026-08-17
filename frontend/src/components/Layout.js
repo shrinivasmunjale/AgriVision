@@ -124,7 +124,7 @@ export default function Layout({ children }) {
         <header className="sticky top-0 z-30 bg-surface-base/80 backdrop-blur-xl border-b border-border-subtle px-4 lg:px-8 flex items-center justify-between h-16">
           <h1 className="text-lg font-bold text-text-primary truncate">{title}</h1>
           <div className="flex items-center gap-2">
-            <LanguageToggle className="hidden sm:block" />
+            <LanguageToggle />
             <UserMenu />
           </div>
         </header>

@@ -37,8 +37,8 @@ class R2StorageClient:
             file_path = self.local_storage_path / unique_filename
             with open(file_path, 'wb') as f:
                 f.write(file_data)
-            # Return full URL with backend host from environment variable
-            backend_url = os.getenv('BACKEND_URL', 'http://localhost:8000')
+            # Return full URL with backend host from settings
+            backend_url = settings.BACKEND_URL
             return f"{backend_url}/uploads/{unique_filename}"
         else:
             # Upload to R2
