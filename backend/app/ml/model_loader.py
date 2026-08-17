@@ -6,8 +6,9 @@ from pathlib import Path
 from typing import List, Dict, Optional, Tuple
 
 # Base directory for ML artifacts
-ML_DIR = Path(__file__).parent
+ML_DIR = Path(__file__).resolve().parent
 LABELS_FILE = ML_DIR / "labels.json"
+
 
 # Potential model filenames in backend/app/ml/
 MODEL_CANDIDATES = [

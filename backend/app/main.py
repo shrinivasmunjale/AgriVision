@@ -33,6 +33,15 @@ async def lifespan(app: FastAPI):
         else:
             print("Database already initialized.")
 
+    # Pre-warm ML models once at application startup
+    try:
+        from app.ml.model_loader import pytorch_model_loader
+        from app.ml.yolo_detector import yolo_leaf_detector
+        print(f"[STARTUP] PyTorch model status: ready={pytorch_model_loader.is_ready()}")
+        print(f"[STARTUP] YOLOv8 model status: ready={yolo_leaf_detector.is_ready}")
+    except Exception as e:
+        print(f"[STARTUP WARNING] Model pre-warm notice: {e}")
+
     yield
 
 
@@ -52,12 +61,13 @@ app.add_middleware(
         "https://agri-vision1.vercel.app",
         "https://agri-vision1-git-main-shrinivasmunjales-projects.vercel.app",
     ],
-    allow_origin_regex=r"https://.*\.vercel\.app|http://localhost:\d+|http://127\.0\.0\.1:\d+",
+    allow_origin_regex=r"https://.*\.vercel\.app|https://.*\.azurewebsites\.net|http://localhost:\d+|http://127\.0\.0\.1:\d+",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=["*"],
 )
+
 
 uploads_dir = Path("uploads")
 uploads_dir.mkdir(exist_ok=True)

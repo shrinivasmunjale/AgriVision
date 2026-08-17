@@ -56,14 +56,16 @@ def run_migrations_offline() -> None:
         context.run_migrations()
 
 def do_run_migrations(connection):
+    is_sqlite = connection.dialect.name == "sqlite"
     context.configure(
         connection=connection,
         target_metadata=target_metadata,
-        render_as_batch=True  # Enabled batch mode for SQLite schema modification support
+        render_as_batch=is_sqlite  # Enable batch mode for SQLite, native DDL for PostgreSQL
     )
 
     with context.begin_transaction():
         context.run_migrations()
+
 
 async def run_migrations_online() -> None:
     """Run migrations in 'online' mode.

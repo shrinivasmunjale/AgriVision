@@ -1,14 +1,23 @@
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from app.core.config import settings
 
-# For SQLite, we might want to check the connection string to allow multithreading if needed
 is_sqlite = settings.DATABASE_URL.startswith("sqlite")
-connect_args = {"check_same_thread": False} if is_sqlite else {}
+
+# Engine options configuration
+engine_kwargs = {}
+if is_sqlite:
+    engine_kwargs["connect_args"] = {"check_same_thread": False}
+else:
+    # PostgreSQL connection pool settings for Supabase
+    engine_kwargs["pool_size"] = settings.DB_POOL_SIZE
+    engine_kwargs["max_overflow"] = settings.DB_MAX_OVERFLOW
+    engine_kwargs["pool_recycle"] = settings.DB_POOL_RECYCLE
+    engine_kwargs["pool_pre_ping"] = True
 
 engine = create_async_engine(
     settings.DATABASE_URL,
-    echo=True,
-    connect_args=connect_args
+    echo=False,
+    **engine_kwargs
 )
 
 SessionLocal = async_sessionmaker(
@@ -29,3 +38,4 @@ async def get_db():
             raise
         finally:
             await session.close()
+

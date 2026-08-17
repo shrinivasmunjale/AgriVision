@@ -4,7 +4,8 @@ from typing import Optional, Tuple
 from PIL import Image
 
 # Base directory paths
-ML_DIR = Path(__file__).parent
+ML_DIR = Path(__file__).resolve().parent
+
 
 def _get_mywork_model_dir() -> Optional[Path]:
     try:

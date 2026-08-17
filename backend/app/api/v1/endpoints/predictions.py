@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File,
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+from sqlalchemy.orm import selectinload
 from sqlalchemy import desc
 from typing import List, Optional, Dict
 import uuid
@@ -270,6 +271,7 @@ async def generate_batch_report(
             "Content-Disposition": "attachment; filename=agrivision_batch_report.pdf"
         }
     )
+
 @router.get("", response_model=List[PredictionResponse])
 async def get_predictions(
     skip: int = 0,
@@ -278,8 +280,16 @@ async def get_predictions(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Get prediction history for current user"""
-    query = select(Prediction).filter(Prediction.user_id == current_user.id)
+    """Get prediction history for current user with eager loaded relationships (eliminating N+1 queries)"""
+    query = (
+        select(Prediction)
+        .options(
+            selectinload(Prediction.disease),
+            selectinload(Prediction.recommendations).selectinload(Recommendation.pesticide),
+            selectinload(Prediction.recommendations).selectinload(Recommendation.fertilizer),
+        )
+        .filter(Prediction.user_id == current_user.id)
+    )
     
     if disease_id:
         query = query.filter(Prediction.disease_id == disease_id)
@@ -289,51 +299,21 @@ async def get_predictions(
     result = await db.execute(query)
     predictions = result.scalars().all()
     
-    # Build response with recommendations
+    # Build response using pre-fetched eager loaded relationships
     response = []
     for pred in predictions:
-        # Get disease name
-        disease_name = None
-        if pred.disease_id:
-            disease_result = await db.execute(
-                select(Disease).filter(Disease.id == pred.disease_id)
-            )
-            disease = disease_result.scalars().first()
-            if disease:
-                disease_name = disease.name
-        
-        # Get recommendations
-        recs_result = await db.execute(
-            select(Recommendation).filter(Recommendation.prediction_id == pred.id)
-        )
-        recommendations = recs_result.scalars().all()
+        disease_name = pred.disease.name if pred.disease else None
         
         recommendations_list = []
-        for rec in recommendations:
+        for rec in pred.recommendations:
             rec_item = RecommendationItem(
                 id=rec.id,
                 pesticide_id=rec.pesticide_id,
                 fertilizer_id=rec.fertilizer_id,
-                similarity_score=rec.similarity_score
+                similarity_score=rec.similarity_score,
+                pesticide_name=rec.pesticide.name if rec.pesticide else None,
+                fertilizer_name=rec.fertilizer.name if rec.fertilizer else None,
             )
-            
-            # Get pesticide/fertilizer names
-            if rec.pesticide_id:
-                pest_result = await db.execute(
-                    select(Pesticide).filter(Pesticide.id == rec.pesticide_id)
-                )
-                pesticide = pest_result.scalars().first()
-                if pesticide:
-                    rec_item.pesticide_name = pesticide.name
-            
-            if rec.fertilizer_id:
-                fert_result = await db.execute(
-                    select(Fertilizer).filter(Fertilizer.id == rec.fertilizer_id)
-                )
-                fertilizer = fert_result.scalars().first()
-                if fertilizer:
-                    rec_item.fertilizer_name = fertilizer.name
-            
             recommendations_list.append(rec_item)
         
         response.append(PredictionResponse(
@@ -412,13 +392,20 @@ async def get_prediction(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Get detailed prediction by ID"""
-    result = await db.execute(
-        select(Prediction).filter(
+    """Get detailed prediction by ID with eager loaded relationships"""
+    query = (
+        select(Prediction)
+        .options(
+            selectinload(Prediction.disease),
+            selectinload(Prediction.recommendations).selectinload(Recommendation.pesticide),
+            selectinload(Prediction.recommendations).selectinload(Recommendation.fertilizer),
+        )
+        .filter(
             Prediction.id == prediction_id,
             Prediction.user_id == current_user.id
         )
     )
+    result = await db.execute(query)
     prediction = result.scalars().first()
     
     if not prediction:
@@ -427,48 +414,18 @@ async def get_prediction(
             detail="Prediction not found"
         )
     
-    # Get disease name
-    disease_name = None
-    if prediction.disease_id:
-        disease_result = await db.execute(
-            select(Disease).filter(Disease.id == prediction.disease_id)
-        )
-        disease = disease_result.scalars().first()
-        if disease:
-            disease_name = disease.name
-    
-    # Get recommendations with full details
-    recs_result = await db.execute(
-        select(Recommendation).filter(Recommendation.prediction_id == prediction.id)
-    )
-    recommendations = recs_result.scalars().all()
+    disease_name = prediction.disease.name if prediction.disease else None
     
     recommendations_list = []
-    for rec in recommendations:
-        rec_item = RecommendationItem(
+    for rec in prediction.recommendations:
+        recommendations_list.append(RecommendationItem(
             id=rec.id,
             pesticide_id=rec.pesticide_id,
             fertilizer_id=rec.fertilizer_id,
-            similarity_score=rec.similarity_score
-        )
-        
-        if rec.pesticide_id:
-            pest_result = await db.execute(
-                select(Pesticide).filter(Pesticide.id == rec.pesticide_id)
-            )
-            pesticide = pest_result.scalars().first()
-            if pesticide:
-                rec_item.pesticide_name = pesticide.name
-        
-        if rec.fertilizer_id:
-            fert_result = await db.execute(
-                select(Fertilizer).filter(Fertilizer.id == rec.fertilizer_id)
-            )
-            fertilizer = fert_result.scalars().first()
-            if fertilizer:
-                rec_item.fertilizer_name = fertilizer.name
-        
-        recommendations_list.append(rec_item)
+            similarity_score=rec.similarity_score,
+            pesticide_name=rec.pesticide.name if rec.pesticide else None,
+            fertilizer_name=rec.fertilizer.name if rec.fertilizer else None,
+        ))
     
     return PredictionResponse(
         id=prediction.id,
@@ -490,14 +447,20 @@ async def generate_pdf_report(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Generate and download PDF report for a prediction"""
-    # Get prediction
-    pred_result = await db.execute(
-        select(Prediction).filter(
+    """Generate and download PDF report for a prediction with eager loaded relationships"""
+    query = (
+        select(Prediction)
+        .options(
+            selectinload(Prediction.disease),
+            selectinload(Prediction.recommendations).selectinload(Recommendation.pesticide),
+            selectinload(Prediction.recommendations).selectinload(Recommendation.fertilizer),
+        )
+        .filter(
             Prediction.id == prediction_id,
             Prediction.user_id == current_user.id
         )
     )
+    pred_result = await db.execute(query)
     prediction = pred_result.scalars().first()
     
     if not prediction:
@@ -506,77 +469,52 @@ async def generate_pdf_report(
             detail="Prediction not found"
         )
     
-    # Get disease info
     disease_data = {}
-    if prediction.disease_id:
-        disease_result = await db.execute(
-            select(Disease).filter(Disease.id == prediction.disease_id)
-        )
-        disease = disease_result.scalars().first()
-        if disease:
-            disease_data = {
-                "name": disease.name,
-                "description": disease.description,
-                "symptoms": disease.symptoms,
-                "causes": disease.causes,
-                "severity_level": disease.severity_level
-            }
-    
-    # Get recommendations with full details
-    recs_result = await db.execute(
-        select(Recommendation).filter(Recommendation.prediction_id == prediction.id)
-    )
-    recommendations = recs_result.scalars().all()
+    if prediction.disease:
+        disease_data = {
+            "name": prediction.disease.name,
+            "description": prediction.disease.description,
+            "symptoms": prediction.disease.symptoms,
+            "causes": prediction.disease.causes,
+            "severity_level": prediction.disease.severity_level
+        }
     
     recommendations_list = []
-    for rec in recommendations:
+    for rec in prediction.recommendations:
         rec_data = {
             "similarity_score": rec.similarity_score
         }
         
-        if rec.pesticide_id:
-            pest_result = await db.execute(
-                select(Pesticide).filter(Pesticide.id == rec.pesticide_id)
-            )
-            pesticide = pest_result.scalars().first()
-            if pesticide:
-                rec_data.update({
-                    "pesticide_name": pesticide.name,
-                    "active_ingredient": pesticide.active_ingredient,
-                    "dosage": pesticide.dosage,
-                    "application_method": pesticide.application_method
-                })
+        if rec.pesticide:
+            rec_data.update({
+                "pesticide_name": rec.pesticide.name,
+                "active_ingredient": rec.pesticide.active_ingredient,
+                "dosage": rec.pesticide.dosage,
+                "application_method": rec.pesticide.application_method
+            })
         
-        if rec.fertilizer_id:
-            fert_result = await db.execute(
-                select(Fertilizer).filter(Fertilizer.id == rec.fertilizer_id)
-            )
-            fertilizer = fert_result.scalars().first()
-            if fertilizer:
-                rec_data.update({
-                    "fertilizer_name": fertilizer.name,
-                    "composition": fertilizer.composition,
-                    "dosage": fertilizer.dosage,
-                    "application_stage": fertilizer.application_stage
-                })
+        if rec.fertilizer:
+            rec_data.update({
+                "fertilizer_name": rec.fertilizer.name,
+                "composition": rec.fertilizer.composition,
+                "dosage": rec.fertilizer.dosage,
+                "application_stage": rec.fertilizer.application_stage
+            })
         
         recommendations_list.append(rec_data)
     
-    # User data
     user_data = {
         "name": current_user.name,
         "email": current_user.email,
         "farm_name": current_user.farm_name or "N/A"
     }
     
-    # Prediction data
     prediction_data = {
         "confidence_score": prediction.confidence_score,
         "created_at": prediction.created_at.strftime("%B %d, %Y %I:%M %p"),
         "image_url": getattr(prediction, "image_url", None)
     }
     
-    # Generate PDF
     pdf_buffer = pdf_generator.generate_report(
         prediction_data=prediction_data,
         user_data=user_data,
@@ -584,7 +522,6 @@ async def generate_pdf_report(
         recommendations=recommendations_list
     )
     
-    # Save report record
     report = Report(
         prediction_id=prediction.id,
         file_url=f"report_{prediction.id}.pdf"
@@ -592,7 +529,6 @@ async def generate_pdf_report(
     db.add(report)
     await db.commit()
     
-    # Return PDF as download
     return StreamingResponse(
         pdf_buffer,
         media_type="application/pdf",
@@ -600,3 +536,4 @@ async def generate_pdf_report(
             "Content-Disposition": f"attachment; filename=agrivision_report_{prediction_id}.pdf"
         }
     )
+

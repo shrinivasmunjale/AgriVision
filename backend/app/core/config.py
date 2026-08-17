@@ -12,8 +12,11 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "AgriVision AI"
     API_V1_STR: str = "/api/v1"
 
-    # Database Configuration (SQLite default for easy deployment, PostgreSQL supported)
+    # Database Configuration (Supabase PostgreSQL supported, SQLite fallback)
     DATABASE_URL: str = "sqlite+aiosqlite:///./agrivision.db"
+    DB_POOL_SIZE: int = 10
+    DB_MAX_OVERFLOW: int = 20
+    DB_POOL_RECYCLE: int = 1800
 
     @field_validator("DATABASE_URL", mode="before")
     @classmethod
@@ -21,15 +24,15 @@ class Settings(BaseSettings):
         if not v or not isinstance(v, str):
             v = "sqlite+aiosqlite:///./agrivision.db"
         
-        # Render PostgreSQL uses postgres:// or postgresql:// -> convert to postgresql+asyncpg://
+        # Supabase / Azure PostgreSQL URI conversion: postgres:// or postgresql:// -> postgresql+asyncpg://
         if v.startswith("postgres://"):
-            return v.replace("postgres://", "postgresql+asyncpg://", 1)
-        if v.startswith("postgresql://"):
-            return v.replace("postgresql://", "postgresql+asyncpg://", 1)
-        if v.startswith("sqlite://") and not v.startswith("sqlite+aiosqlite://"):
-            return v.replace("sqlite://", "sqlite+aiosqlite://", 1)
+            v = v.replace("postgres://", "postgresql+asyncpg://", 1)
+        elif v.startswith("postgresql://") and not v.startswith("postgresql+asyncpg://"):
+            v = v.replace("postgresql://", "postgresql+asyncpg://", 1)
+        elif v.startswith("sqlite://") and not v.startswith("sqlite+aiosqlite://"):
+            v = v.replace("sqlite://", "sqlite+aiosqlite://", 1)
             
-        # Check if Render persistent disk exists (/var/data or /data)
+        # Check if persistent disk exists (/var/data or /data) for SQLite
         if "sqlite" in v and "./agrivision.db" in v:
             for persistent_dir in ["/var/data", "/data"]:
                 if Path(persistent_dir).is_dir():
@@ -60,3 +63,4 @@ class Settings(BaseSettings):
     AI_MODEL: str = ""
 
 settings = Settings()
+
