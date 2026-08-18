@@ -61,7 +61,7 @@ app.add_middleware(
         "https://agri-vision1.vercel.app",
         "https://agri-vision1-git-main-shrinivasmunjales-projects.vercel.app",
     ],
-    allow_origin_regex=r"https://.*\.vercel\.app|https://.*\.azurewebsites\.net|http://localhost:\d+|http://127\.0\.0\.1:\d+",
+    allow_origin_regex=r"https://.*\.vercel\.app|https://.*\.onrender\.com|http://localhost:\d+|http://127\.0\.0\.1:\d+",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
