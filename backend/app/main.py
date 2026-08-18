@@ -4,7 +4,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from sqlalchemy import select
+from sqlalchemy import select, text
 
 from app.core.config import settings
 from app.api.v1.api import api_router
@@ -22,6 +22,17 @@ async def lifespan(app: FastAPI):
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        # Existing deployments created before scan context was introduced do
+        # not receive new columns from create_all(). Keep this compatibility
+        # upgrade here so a Render restart can serve scans before Alembic is
+        # run as part of the deployment command.
+        if conn.dialect.name == "postgresql":
+            await conn.execute(text(
+                "ALTER TABLE predictions ADD COLUMN IF NOT EXISTS crop_age_days INTEGER"
+            ))
+            await conn.execute(text(
+                "ALTER TABLE predictions ADD COLUMN IF NOT EXISTS life_stage VARCHAR(50)"
+            ))
 
     async with SessionLocal() as db:
         result = await db.execute(select(User))
