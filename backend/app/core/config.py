@@ -32,6 +32,12 @@ class Settings(BaseSettings):
         elif v.startswith("sqlite://") and not v.startswith("sqlite+aiosqlite://"):
             v = v.replace("sqlite://", "sqlite+aiosqlite://", 1)
             
+        # Clean query parameters unsupported by asyncpg (e.g. ?pgbouncer=true)
+        if "?pgbouncer=true" in v:
+            v = v.replace("?pgbouncer=true", "")
+        elif "&pgbouncer=true" in v:
+            v = v.replace("&pgbouncer=true", "")
+
         # Check if persistent disk exists (/var/data or /data) for SQLite
         if "sqlite" in v and "./agrivision.db" in v:
             for persistent_dir in ["/var/data", "/data"]:
