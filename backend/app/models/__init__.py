@@ -7,3 +7,4 @@ from app.models.prediction import Prediction
 from app.models.recommendation import Recommendation
 from app.models.report import Report
 from app.models.audit_log import AuditLog
+from app.models.contact import ContactMessage

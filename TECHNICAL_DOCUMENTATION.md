@@ -1120,3 +1120,8 @@ backend/app/
 **Document Version:** 1.0  
 **Last Updated:** 2024  
 **Maintained By:** AgriVision AI Team
+
+
+cd backend
+.\.venv\Scripts\Activate.ps1
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000

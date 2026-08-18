@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field, field_validator
@@ -22,6 +23,19 @@ class Settings(BaseSettings):
     @classmethod
     def assemble_db_connection(cls, v: str) -> str:
         if not v or not isinstance(v, str):
+            # A local SQLite file is convenient while developing, but it is
+            # ephemeral on hosted services such as Render/Railway.  Falling
+            # back to it in production makes registration appear successful
+            # while users are saved outside Supabase and disappear on restart.
+            hosted_environment = any(
+                os.getenv(name)
+                for name in ("RENDER", "RENDER_EXTERNAL_URL", "RAILWAY_ENVIRONMENT", "K_SERVICE", "DYNO")
+            )
+            if hosted_environment:
+                raise ValueError(
+                    "DATABASE_URL must be configured in the hosting environment. "
+                    "Refusing to use the SQLite development fallback."
+                )
             v = "sqlite+aiosqlite:///./agrivision.db"
         
         # Supabase / Azure PostgreSQL URI conversion: postgres:// or postgresql:// -> postgresql+asyncpg://

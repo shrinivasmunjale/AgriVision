@@ -353,7 +353,8 @@ async def get_contact_messages(
             "id": msg.id,
             "name": msg.name,
             "email": msg.email,
-            "phone": msg.phone,
+            "subject": msg.subject,
+            "phone": getattr(msg, "phone", ""),
             "message": msg.message,
             "created_at": msg.created_at
         }

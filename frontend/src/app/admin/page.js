@@ -460,6 +460,11 @@ export default function AdminPage() {
                         </span>
                       </div>
                       <div className="pl-13">
+                        {msg.subject && (
+                          <p className="mb-1 text-sm font-semibold text-text-primary">
+                            {msg.subject}
+                          </p>
+                        )}
                         <p className="text-text-primary whitespace-pre-wrap">{msg.message}</p>
                       </div>
                     </div>

@@ -88,8 +88,9 @@ class YOLOLeafDetector:
             ]
         """
         if not self.is_ready or self.model is None:
-            # Fallback if YOLO model is unavailable
-            return True, image, 1.0, None
+            # Do not silently pass the complete image to EfficientNet. The
+            # detector is the gatekeeper for this two-stage pipeline.
+            return False, None, 0.0, "YOLOv8 leaf detector is unavailable"
 
         try:
             # Step 5: First run YOLO detection.
@@ -135,16 +136,20 @@ class YOLOLeafDetector:
             xmax = min(width, xmax + pad_x)
             ymax = min(height, ymax + pad_y)
 
+            if xmax <= xmin or ymax <= ymin:
+                return False, None, best_conf, "Invalid leaf detection area"
+
             print(f"[YOLOv8] Leaf detected with highest confidence {best_conf:.2f}. Cropping bbox: [{xmin}, {ymin}, {xmax}, {ymax}]")
             cropped_image = image.crop((xmin, ymin, xmax, ymax))
 
-            # Save latest cropped leaf for inspection/debugging
+            # Save the selected crop for inspection/debugging. The mounted
+            # uploads directory makes it available at /uploads/latest_cropped_leaf.jpg.
             try:
                 debug_dir = ML_DIR.parent.parent / "uploads"
-                if debug_dir.exists():
-                    cropped_image.save(debug_dir / "latest_cropped_leaf.jpg")
-            except Exception:
-                pass
+                debug_dir.mkdir(parents=True, exist_ok=True)
+                cropped_image.convert("RGB").save(debug_dir / "latest_cropped_leaf.jpg", quality=95)
+            except Exception as save_error:
+                print(f"[YOLOv8] Could not save debug crop: {save_error}")
 
             return True, cropped_image, best_conf, None
 
