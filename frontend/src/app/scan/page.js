@@ -22,6 +22,7 @@ export default function ScanPage() {
   const [error, setError] = useState('')
   const [dragActive, setDragActive] = useState(false)
   const [results, setResults] = useState(null)
+  const [ignoredModalOpen, setIgnoredModalOpen] = useState(false)
   const cameraInputRef = useRef(null)
 
   const metricTone = {
@@ -125,6 +126,7 @@ export default function ScanPage() {
 
       const data = analyzeResponse.data
       setResults(data)
+      setIgnoredModalOpen((data.ignored_images?.length || 0) > 0)
 
       setFiles([])
       setPreviews([])
@@ -429,6 +431,51 @@ export default function ScanPage() {
               )}
             </motion.div>
           )}
+
+          <AnimatePresence>
+            {ignoredModalOpen && results?.ignored_images?.length > 0 && (
+              <motion.div
+                className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="ignored-images-title"
+              >
+                <motion.div
+                  className="w-full max-w-lg rounded-2xl border border-amber-500/30 bg-surface-card p-6 shadow-2xl"
+                  initial={{ opacity: 0, scale: 0.95, y: 16 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95, y: 16 }}
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-start gap-3">
+                      <div className="rounded-full bg-amber-500/15 p-2">
+                        <AlertTriangle className="h-6 w-6 text-amber-400" />
+                      </div>
+                      <div>
+                        <h2 id="ignored-images-title" className="text-xl font-semibold text-text-primary">Some images were ignored</h2>
+                        <p className="mt-1 text-sm text-text-secondary">These images could not be analyzed reliably. Try a clear, well-lit tomato-leaf photo.</p>
+                      </div>
+                    </div>
+                    <button type="button" onClick={() => setIgnoredModalOpen(false)} className="rounded-lg p-1 text-text-secondary transition hover:bg-white/10 hover:text-text-primary" aria-label="Close ignored images message">
+                      <X className="h-5 w-5" />
+                    </button>
+                  </div>
+                  <div className="mt-5 max-h-56 space-y-2 overflow-y-auto pr-1">
+                    {results.ignored_images.map((item, index) => (
+                      <div key={`${item.filename}-${index}`} className="rounded-xl bg-amber-500/10 p-3">
+                        <p className="truncate text-sm font-medium text-amber-200">{item.filename}</p>
+                        <p className="mt-1 text-sm text-amber-300/80">{item.reason}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <button type="button" onClick={() => setIgnoredModalOpen(false)} className="mt-6 w-full rounded-xl bg-amber-500 px-4 py-2.5 font-semibold text-slate-950 transition hover:bg-amber-400">Got it</button>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           <motion.div
             initial={{ opacity: 0, y: 20 }}

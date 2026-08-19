@@ -74,7 +74,7 @@ class YOLOLeafDetector:
     def detect_leaf(
         self,
         image: Image.Image,
-        conf_threshold: float = 0.50,
+        conf_threshold: float = 0.30,
     ) -> Tuple[bool, Optional[Image.Image], float, Optional[str]]:
         """
         Detect tomato leaf in PIL Image and crop the detected region.
@@ -157,7 +157,7 @@ class YOLOLeafDetector:
             print(f"[WARNING] Error during YOLO leaf detection: {e}.")
             return False, None, 0.0, "No tomato leaf detected"
 
-    def detect_and_crop(self, image: Image.Image, conf_threshold: float = 0.50) -> Image.Image:
+    def detect_and_crop(self, image: Image.Image, conf_threshold: float = 0.30) -> Image.Image:
         """Backward compatibility wrapper method."""
         has_leaf, cropped_img, _, _ = self.detect_leaf(image, conf_threshold)
         return cropped_img if (has_leaf and cropped_img is not None) else image

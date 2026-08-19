@@ -292,7 +292,7 @@ class PyTorchModelLoader:
         """
         Run two-stage pipeline:
         1. Run YOLOv8 detection. If no leaf, return an ignored result with reason.
-        2. Run EfficientNetB0 classification. If confidence < 70%, return ignored result.
+        2. Run EfficientNetB0 classification. If confidence < 60%, return ignored result.
 
         Returns a normalized dict:
             valid  -> {"status": "valid", "disease_id", "disease_name", "confidence_score",
@@ -322,7 +322,7 @@ class PyTorchModelLoader:
         # Step 5 & 6: First run YOLO detection. If YOLO does not detect any tomato leaf, DO NOT call EfficientNet.
         try:
             from app.ml.yolo_detector import yolo_leaf_detector
-            has_leaf, cropped_image, leaf_conf, leaf_reason = yolo_leaf_detector.detect_leaf(image, conf_threshold=0.50)
+            has_leaf, cropped_image, leaf_conf, leaf_reason = yolo_leaf_detector.detect_leaf(image, conf_threshold=0.30)
         except Exception as e:
             print(f"[WARNING] YOLO leaf detection error: {e}")
             has_leaf, cropped_image, leaf_conf, leaf_reason = (
@@ -359,8 +359,8 @@ class PyTorchModelLoader:
             class_idx = str(top_catid.item())
             confidence = round(float(top_prob.item()), 4)
 
-        # Step 9: If EfficientNet confidence is below 70%, return low confidence warning
-        if confidence < 0.70:
+        # Step 9: If EfficientNet confidence is below 60%, return low confidence warning
+        if confidence < 0.60:
             return {
                 "status": "ignored",
                 "reason": "Disease confidence too low",
