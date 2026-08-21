@@ -3,10 +3,10 @@
 import { useAuth } from '@/contexts/AuthContext'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
 import { adminAPI, predictionsAPI } from '@/lib/api'
 import Layout from '@/components/Layout'
-import { Users, Activity, TrendingUp, Database, Eye, User, Calendar, Mail, Phone, MapPin } from 'lucide-react'
+import { Users, Activity, TrendingUp, Database, Eye, User, Calendar, Mail, Phone, MapPin, Trash2 } from 'lucide-react'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 
@@ -52,6 +52,35 @@ export default function AdminPage() {
     },
     enabled: !!user && profile?.role === 'admin' && activeTab === 'predictions',
   })
+
+  const queryClient = useQueryClient()
+  const [deletingId, setDeletingId] = useState(null)
+
+  const deletePredictionMutation = useMutation({
+    mutationFn: async (id) => {
+      const token = await getAccessToken()
+      return adminAPI.deletePrediction(id, token)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-predictions'] })
+      queryClient.invalidateQueries({ queryKey: ['admin-analytics'] })
+      setDeletingId(null)
+    },
+    onError: () => {
+      setDeletingId(null)
+    },
+  })
+
+  const handleDeletePrediction = (id) => {
+    if (
+      window.confirm(
+        'Are you sure you want to delete this prediction? This action cannot be undone.'
+      )
+    ) {
+      setDeletingId(id)
+      deletePredictionMutation.mutate(id)
+    }
+  }
 
   const { data: messagesData, isLoading: messagesLoading } = useQuery({
     queryKey: ['admin-messages'],
@@ -402,6 +431,23 @@ export default function AdminPage() {
                           <Eye className="w-4 h-4" />
                           View Details
                         </Link>
+                        <button
+                          onClick={() => handleDeletePrediction(pred.id)}
+                          disabled={deletingId === pred.id}
+                          className="flex items-center justify-center gap-2 w-full mt-2 px-3 py-2 bg-red-400/10 text-red-400 border border-red-400/40 rounded-lg hover:bg-red-400/20 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {deletingId === pred.id ? (
+                            <>
+                              <span className="w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full animate-spin"></span>
+                              Deleting...
+                            </>
+                          ) : (
+                            <>
+                              <Trash2 className="w-4 h-4" />
+                              Delete
+                            </>
+                          )}
+                        </button>
                       </div>
                     </div>
                   ))}

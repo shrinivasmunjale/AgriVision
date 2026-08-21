@@ -412,6 +412,39 @@ async def get_all_predictions(
     
     return predictions
 
+@router.delete("/predictions/{prediction_id}")
+async def delete_prediction_as_admin(
+    prediction_id: str,
+    current_user: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    """Delete a prediction record as admin"""
+    result = await db.execute(select(Prediction).filter(Prediction.id == prediction_id))
+    prediction = result.scalars().first()
+    
+    if not prediction:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Prediction not found"
+        )
+    
+    # Log audit
+    audit = AuditLog(
+        admin_id=current_user.id,
+        action="DELETE",
+        entity="prediction",
+        entity_id=str(prediction.id)
+    )
+    db.add(audit)
+    
+    await db.delete(prediction)
+    await db.commit()
+    
+    return {
+        "message": "Prediction deleted successfully",
+        "id": prediction_id
+    }
+
 @router.get("/analytics")
 async def get_analytics(
     current_user: User = Depends(require_admin),

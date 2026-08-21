@@ -123,6 +123,10 @@ export const adminAPI = {
     api.get('/admin/predictions', {
       headers: { Authorization: `Bearer ${token}` },
     }),
+  deletePrediction: (id, token) =>
+    api.delete(`/admin/predictions/${id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
   getContactMessages: (token) =>
     api.get('/admin/contact-messages', {
       headers: { Authorization: `Bearer ${token}` },

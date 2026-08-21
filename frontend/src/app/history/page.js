@@ -146,6 +146,9 @@ export default function HistoryPage() {
                           src={prediction.image_url}
                           alt="Leaf scan"
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                          onError={(e) => {
+                            e.target.src = '/placeholder-leaf.png'
+                          }}
                         />
                       </div>
                       <div className="p-4 pr-12">

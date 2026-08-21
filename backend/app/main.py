@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+from datetime import datetime
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -97,6 +98,11 @@ async def root():
     }
 
 
+
 @app.get("/health")
 async def health():
-    return {"status": "ok"}
+    return {
+        "success": True,
+        "message": "Server is healthy",
+        "timestamp": datetime.utcnow().isoformat() + "Z"
+    }

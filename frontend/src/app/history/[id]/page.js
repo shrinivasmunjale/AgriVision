@@ -140,6 +140,9 @@ export default function PredictionDetailPage() {
               src={prediction.image_url}
               alt="Leaf scan"
               className="w-full h-96 object-contain bg-surface-base"
+              onError={(e) => {
+                e.target.src = '/placeholder-leaf.png'
+              }}
             />
           </div>
 

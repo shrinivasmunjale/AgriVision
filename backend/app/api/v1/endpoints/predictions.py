@@ -362,13 +362,16 @@ async def delete_prediction(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Delete a single prediction record by ID"""
-    result = await db.execute(
-        select(Prediction).filter(
+    """Delete a single prediction record by ID (Admin can delete any prediction)"""
+    if current_user.role == "admin":
+        stmt = select(Prediction).filter(Prediction.id == prediction_id)
+    else:
+        stmt = select(Prediction).filter(
             Prediction.id == prediction_id,
             Prediction.user_id == current_user.id
         )
-    )
+        
+    result = await db.execute(stmt)
     prediction = result.scalars().first()
     
     if not prediction:
@@ -392,7 +395,7 @@ async def get_prediction(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Get detailed prediction by ID with eager loaded relationships"""
+    """Get detailed prediction by ID with eager loaded relationships (Admin can view any prediction)"""
     query = (
         select(Prediction)
         .options(
@@ -400,11 +403,15 @@ async def get_prediction(
             selectinload(Prediction.recommendations).selectinload(Recommendation.pesticide),
             selectinload(Prediction.recommendations).selectinload(Recommendation.fertilizer),
         )
-        .filter(
+    )
+    if current_user.role == "admin":
+        query = query.filter(Prediction.id == prediction_id)
+    else:
+        query = query.filter(
             Prediction.id == prediction_id,
             Prediction.user_id == current_user.id
         )
-    )
+        
     result = await db.execute(query)
     prediction = result.scalars().first()
     
@@ -447,7 +454,7 @@ async def generate_pdf_report(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Generate and download PDF report for a prediction with eager loaded relationships"""
+    """Generate and download PDF report for a prediction with eager loaded relationships (Admin can download for any prediction)"""
     query = (
         select(Prediction)
         .options(
@@ -455,11 +462,15 @@ async def generate_pdf_report(
             selectinload(Prediction.recommendations).selectinload(Recommendation.pesticide),
             selectinload(Prediction.recommendations).selectinload(Recommendation.fertilizer),
         )
-        .filter(
+    )
+    if current_user.role == "admin":
+        query = query.filter(Prediction.id == prediction_id)
+    else:
+        query = query.filter(
             Prediction.id == prediction_id,
             Prediction.user_id == current_user.id
         )
-    )
+        
     pred_result = await db.execute(query)
     prediction = pred_result.scalars().first()
     
