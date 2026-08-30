@@ -27,9 +27,17 @@ export default function Layout({ children }) {
   const { t } = useI18n()
 
   const title = useMemo(() => {
-    if (pathname?.startsWith('/history/')) return 'Prediction Detail'
-    return pageTitles[pathname] || 'AgriVision AI'
-  }, [pathname])
+    if (pathname?.startsWith('/history/')) return t('history.diagnosticResults') || 'Prediction Detail'
+    if (pathname === '/dashboard') return t('nav.dashboard')
+    if (pathname === '/scan') return t('scan.title')
+    if (pathname === '/history') return t('nav.history')
+    if (pathname === '/profile') return t('nav.profile')
+    if (pathname === '/admin') return t('nav.admin')
+    if (pathname === '/tips') return t('nav.tips')
+    if (pathname === '/faq') return t('nav.faq')
+    if (pathname === '/contact') return t('nav.contact')
+    return 'AgriVision AI'
+  }, [pathname, t])
 
   const handleSignOut = async () => {
     await signOut()
@@ -38,23 +46,27 @@ export default function Layout({ children }) {
 
   const isAdmin = profile?.role === 'admin'
 
-  const navItems = [
-    { icon: Home, label: 'Home', href: '/dashboard' },
-    { icon: Camera, label: 'Scan', href: '/scan' },
-    { icon: History, label: 'History', href: '/history' },
-    ...(isAdmin ? [{ icon: BarChart3, label: 'Admin', href: '/admin' }] : []),
-    { icon: Lightbulb, label: 'Tips', href: '/tips' },
-    { icon: HelpCircle, label: 'FAQ', href: '/faq' },
-    { icon: MessageCircle, label: 'Contact', href: '/contact' },
-    { icon: Settings, label: 'Profile', href: '/profile' },
-  ]
+  const navItems = isAdmin
+    ? [
+        { icon: BarChart3, label: t('nav.admin'), href: '/admin' },
+        { icon: Settings, label: t('nav.profile'), href: '/profile' },
+      ]
+    : [
+        { icon: Home, label: t('nav.home'), href: '/dashboard' },
+        { icon: Camera, label: t('nav.scan'), href: '/scan' },
+        { icon: History, label: t('nav.history'), href: '/history' },
+        { icon: Lightbulb, label: t('nav.tips'), href: '/tips' },
+        { icon: HelpCircle, label: t('nav.faq'), href: '/faq' },
+        { icon: MessageCircle, label: t('nav.contact'), href: '/contact' },
+        { icon: Settings, label: t('nav.profile'), href: '/profile' },
+      ]
 
   return (
     <div className="min-h-screen bg-surface-base">
       {/* Desktop Sidebar */}
       <aside className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col">
         <div className="flex flex-col flex-1 min-h-0 bg-surface-card border-r border-border-subtle">
-          <div className="flex items-center h-16 flex-shrink-0 px-4 border-b border-border-subtle">
+          <div className="flex items-center justify-between h-16 flex-shrink-0 px-4 border-b border-border-subtle">
             <h1 className="text-xl font-bold text-primary-400">AgriVision AI</h1>
           </div>
           <nav className="flex-1 px-2 py-4 space-y-1">
@@ -83,14 +95,14 @@ export default function Layout({ children }) {
               className="flex items-center w-full px-4 py-3 text-sm font-medium text-text-secondary hover:text-text-primary hover:bg-surface-base rounded-xl transition-colors"
             >
               {theme === 'dark' ? <Sun className="w-5 h-5 mr-3" /> : <Moon className="w-5 h-5 mr-3" />}
-              {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+              {theme === 'dark' ? t('nav.lightMode') : t('nav.darkMode')}
             </button>
             <button
               onClick={handleSignOut}
               className="flex items-center w-full px-4 py-3 text-sm font-medium text-text-secondary hover:text-text-primary hover:bg-surface-base rounded-xl transition-colors"
             >
               <LogOut className="w-5 h-5 mr-3" />
-              Sign Out
+              {t('nav.signOut')}
             </button>
           </div>
         </div>
@@ -110,8 +122,8 @@ export default function Layout({ children }) {
                   isActive ? 'text-primary-400' : 'text-text-secondary'
                 }`}
               >
-                <Icon className="w-6 h-6" />
-                <span className="text-xs mt-1">{item.label}</span>
+                <Icon className="w-5 h-5" />
+                <span className="text-[10px] mt-1 truncate max-w-[60px] text-center">{item.label}</span>
               </Link>
             )
           })}
@@ -124,7 +136,7 @@ export default function Layout({ children }) {
         <header className="sticky top-0 z-30 bg-surface-base/80 backdrop-blur-xl border-b border-border-subtle px-4 lg:px-8 flex items-center justify-between h-16">
           <h1 className="text-lg font-bold text-text-primary truncate">{title}</h1>
           <div className="flex items-center gap-2">
-            <LanguageToggle className="hidden sm:block" />
+            <LanguageToggle />
             <UserMenu />
           </div>
         </header>

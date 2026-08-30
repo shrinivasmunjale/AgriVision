@@ -26,6 +26,7 @@ from app.services.ml_inference import ml_service
 from app.services.recommendation import recommendation_engine
 from app.services.storage import storage_client
 from app.services.pdf_report import pdf_generator
+from app.ml.yolo_detector import yolo_detector
 
 router = APIRouter()
 
@@ -120,46 +121,81 @@ async def analyze_images(
         
         # Generate recommendations if disease detected
         recommendations_list = []
-        if prediction.disease_id:
+        if prediction.disease_id and disease_name:
             recs = await recommendation_engine.get_recommendations(
                 prediction.disease_id, 
                 db
             )
             
-            # Save pesticide recommendations
+            # Save and return pesticide recommendations from pesticides.json
             for pest_rec in recs["pesticides"]:
                 rec = Recommendation(
                     prediction_id=prediction.id,
-                    pesticide_id=pest_rec["pesticide_id"],
-                    similarity_score=pest_rec["similarity_score"]
+                    pesticide_id=pest_rec.get("pesticide_id"),
+                    similarity_score=pest_rec.get("similarity_score", 0.95)
                 )
                 db.add(rec)
                 recommendations_list.append(RecommendationItem(
-                    id=0,  # Will be set after commit
-                    pesticide_id=pest_rec["pesticide_id"],
-                    pesticide_name=pest_rec["pesticide_name"],
-                    similarity_score=pest_rec["similarity_score"]
+                    id=0,
+                    pesticide_id=pest_rec.get("pesticide_id"),
+                    pesticide_name=pest_rec.get("pesticide_name"),
+                    type=pest_rec.get("type"),
+                    active_ingredient=pest_rec.get("active_ingredient"),
+                    dosage=pest_rec.get("dosage"),
+                    spray_interval=pest_rec.get("spray_interval"),
+                    application_method=pest_rec.get("application_method"),
+                    effectiveness=pest_rec.get("effectiveness"),
+                    waiting_period=pest_rec.get("waiting_period"),
+                    precautions=pest_rec.get("precautions", []),
+                    priority=pest_rec.get("priority"),
+                    crop_stage=pest_rec.get("crop_stage"),
+                    recommendation_note=pest_rec.get("recommendation_note"),
+                    similarity_score=pest_rec.get("similarity_score", 0.95)
                 ))
             
             # Save fertilizer recommendations
             for fert_rec in recs["fertilizers"]:
                 rec = Recommendation(
                     prediction_id=prediction.id,
-                    fertilizer_id=fert_rec["fertilizer_id"],
-                    similarity_score=fert_rec["similarity_score"]
+                    fertilizer_id=fert_rec.get("fertilizer_id"),
+                    similarity_score=fert_rec.get("similarity_score", 0.90)
                 )
                 db.add(rec)
                 recommendations_list.append(RecommendationItem(
-                    id=0,  # Will be set after commit
-                    fertilizer_id=fert_rec["fertilizer_id"],
-                    fertilizer_name=fert_rec["fertilizer_name"],
-                    similarity_score=fert_rec["similarity_score"]
+                    id=0,
+                    fertilizer_id=fert_rec.get("fertilizer_id"),
+                    fertilizer_name=fert_rec.get("fertilizer_name"),
+                    composition=fert_rec.get("composition"),
+                    dosage=fert_rec.get("dosage"),
+                    application_stage=fert_rec.get("application_stage"),
+                    similarity_score=fert_rec.get("similarity_score", 0.90)
                 ))
         
+        # Generate bounding box annotated image using YOLO detector
+        annotated_image_url = None
+        try:
+            annotated_bytes, _ = await yolo_detector.annotate_image(
+                image_input=ml_pred["image_url"],
+                disease_name=disease_name or ml_pred.get("disease_name", "Infected Area"),
+                confidence=ml_pred["confidence_score"]
+            )
+            annotated_url = await storage_client.upload_file(
+                annotated_bytes,
+                f"annotated_{uuid.uuid4()}.jpg",
+                "image/jpeg"
+            )
+            annotated_image_url = annotated_url
+        except Exception as bbox_err:
+            print(f"[WARNING] Bounding box annotation failed: {bbox_err}")
+            annotated_image_url = ml_pred["image_url"]
+
+        prediction.annotated_image_url = annotated_image_url
+
         predictions_response.append(PredictionResponse(
             id=prediction.id,
             user_id=prediction.user_id,
             image_url=prediction.image_url,
+            annotated_image_url=prediction.annotated_image_url,
             disease_id=prediction.disease_id,
             disease_name=disease_name,
             confidence_score=prediction.confidence_score,
@@ -207,43 +243,47 @@ async def get_predictions(
                 disease_name = disease.name
         
         # Get recommendations
-        recs_result = await db.execute(
-            select(Recommendation).filter(Recommendation.prediction_id == pred.id)
-        )
-        recommendations = recs_result.scalars().all()
-        
         recommendations_list = []
-        for rec in recommendations:
-            rec_item = RecommendationItem(
-                id=rec.id,
-                pesticide_id=rec.pesticide_id,
-                fertilizer_id=rec.fertilizer_id,
-                similarity_score=rec.similarity_score
-            )
+        if disease_name and disease_name != "Healthy":
+            pesticide_info = recommendation_engine.get_pesticide_products_by_disease_name(disease_name)
+            for prod in pesticide_info.get("products", []):
+                recommendations_list.append(RecommendationItem(
+                    id=prod.get("pesticide_id", 0),
+                    pesticide_id=prod.get("pesticide_id"),
+                    pesticide_name=prod.get("pesticide_name"),
+                    type=prod.get("type"),
+                    active_ingredient=prod.get("active_ingredient"),
+                    dosage=prod.get("dosage"),
+                    spray_interval=prod.get("spray_interval"),
+                    application_method=prod.get("application_method"),
+                    effectiveness=prod.get("effectiveness"),
+                    waiting_period=prod.get("waiting_period"),
+                    precautions=prod.get("precautions", []),
+                    priority=prod.get("priority"),
+                    crop_stage=prod.get("crop_stage"),
+                    recommendation_note=prod.get("recommendation_note"),
+                    similarity_score=prod.get("similarity_score", 0.95)
+                ))
             
-            # Get pesticide/fertilizer names
-            if rec.pesticide_id:
-                pest_result = await db.execute(
-                    select(Pesticide).filter(Pesticide.id == rec.pesticide_id)
-                )
-                pesticide = pest_result.scalars().first()
-                if pesticide:
-                    rec_item.pesticide_name = pesticide.name
-            
-            if rec.fertilizer_id:
-                fert_result = await db.execute(
-                    select(Fertilizer).filter(Fertilizer.id == rec.fertilizer_id)
-                )
-                fertilizer = fert_result.scalars().first()
-                if fertilizer:
-                    rec_item.fertilizer_name = fertilizer.name
-            
-            recommendations_list.append(rec_item)
+            # Fetch fertilizers
+            fert_result = await db.execute(select(Fertilizer))
+            fertilizers = fert_result.scalars().all()
+            for idx, fert in enumerate(fertilizers[:2], start=1):
+                recommendations_list.append(RecommendationItem(
+                    id=idx,
+                    fertilizer_id=fert.id,
+                    fertilizer_name=fert.name,
+                    composition=fert.composition,
+                    dosage=fert.dosage,
+                    application_stage=fert.application_stage,
+                    similarity_score=max(0.85, round(0.95 - (idx - 1) * 0.05, 2))
+                ))
         
         response.append(PredictionResponse(
             id=pred.id,
             user_id=pred.user_id,
             image_url=pred.image_url,
+            annotated_image_url=getattr(pred, 'annotated_image_url', None) or pred.image_url,
             disease_id=pred.disease_id,
             disease_name=disease_name,
             confidence_score=pred.confidence_score,
@@ -284,43 +324,48 @@ async def get_prediction(
         if disease:
             disease_name = disease.name
     
-    # Get recommendations with full details
-    recs_result = await db.execute(
-        select(Recommendation).filter(Recommendation.prediction_id == prediction.id)
-    )
-    recommendations = recs_result.scalars().all()
-    
+    # Get rich recommendations from pesticides.json
     recommendations_list = []
-    for rec in recommendations:
-        rec_item = RecommendationItem(
-            id=rec.id,
-            pesticide_id=rec.pesticide_id,
-            fertilizer_id=rec.fertilizer_id,
-            similarity_score=rec.similarity_score
-        )
+    if disease_name and disease_name != "Healthy":
+        pesticide_info = recommendation_engine.get_pesticide_products_by_disease_name(disease_name)
+        for prod in pesticide_info.get("products", []):
+            recommendations_list.append(RecommendationItem(
+                id=prod.get("pesticide_id", 0),
+                pesticide_id=prod.get("pesticide_id"),
+                pesticide_name=prod.get("pesticide_name"),
+                type=prod.get("type"),
+                active_ingredient=prod.get("active_ingredient"),
+                dosage=prod.get("dosage"),
+                spray_interval=prod.get("spray_interval"),
+                application_method=prod.get("application_method"),
+                effectiveness=prod.get("effectiveness"),
+                waiting_period=prod.get("waiting_period"),
+                precautions=prod.get("precautions", []),
+                priority=prod.get("priority"),
+                crop_stage=prod.get("crop_stage"),
+                recommendation_note=prod.get("recommendation_note"),
+                similarity_score=prod.get("similarity_score", 0.95)
+            ))
         
-        if rec.pesticide_id:
-            pest_result = await db.execute(
-                select(Pesticide).filter(Pesticide.id == rec.pesticide_id)
-            )
-            pesticide = pest_result.scalars().first()
-            if pesticide:
-                rec_item.pesticide_name = pesticide.name
-        
-        if rec.fertilizer_id:
-            fert_result = await db.execute(
-                select(Fertilizer).filter(Fertilizer.id == rec.fertilizer_id)
-            )
-            fertilizer = fert_result.scalars().first()
-            if fertilizer:
-                rec_item.fertilizer_name = fertilizer.name
-        
-        recommendations_list.append(rec_item)
+        # Add fertilizer recommendations
+        fert_result = await db.execute(select(Fertilizer))
+        fertilizers = fert_result.scalars().all()
+        for idx, fert in enumerate(fertilizers[:2], start=1):
+            recommendations_list.append(RecommendationItem(
+                id=idx,
+                fertilizer_id=fert.id,
+                fertilizer_name=fert.name,
+                composition=fert.composition,
+                dosage=fert.dosage,
+                application_stage=fert.application_stage,
+                similarity_score=max(0.85, round(0.95 - (idx - 1) * 0.05, 2))
+            ))
     
     return PredictionResponse(
         id=prediction.id,
         user_id=prediction.user_id,
         image_url=prediction.image_url,
+        annotated_image_url=getattr(prediction, 'annotated_image_url', None) or prediction.image_url,
         disease_id=prediction.disease_id,
         disease_name=disease_name,
         confidence_score=prediction.confidence_score,
@@ -367,44 +412,35 @@ async def generate_pdf_report(
             }
     
     # Get recommendations with full details
-    recs_result = await db.execute(
-        select(Recommendation).filter(Recommendation.prediction_id == prediction.id)
-    )
-    recommendations = recs_result.scalars().all()
-    
     recommendations_list = []
-    for rec in recommendations:
-        rec_data = {
-            "similarity_score": rec.similarity_score
-        }
+    disease_name = disease_data.get("name")
+    if disease_name and disease_name != "Healthy":
+        pesticide_info = recommendation_engine.get_pesticide_products_by_disease_name(disease_name)
+        for prod in pesticide_info.get("products", []):
+            recommendations_list.append({
+                "pesticide_name": prod.get("pesticide_name"),
+                "type": prod.get("type"),
+                "active_ingredient": prod.get("active_ingredient"),
+                "dosage": prod.get("dosage"),
+                "spray_interval": prod.get("spray_interval"),
+                "application_method": prod.get("application_method"),
+                "effectiveness": prod.get("effectiveness"),
+                "waiting_period": prod.get("waiting_period"),
+                "precautions": prod.get("precautions", []),
+                "similarity_score": prod.get("similarity_score", 0.95)
+            })
         
-        if rec.pesticide_id:
-            pest_result = await db.execute(
-                select(Pesticide).filter(Pesticide.id == rec.pesticide_id)
-            )
-            pesticide = pest_result.scalars().first()
-            if pesticide:
-                rec_data.update({
-                    "pesticide_name": pesticide.name,
-                    "active_ingredient": pesticide.active_ingredient,
-                    "dosage": pesticide.dosage,
-                    "application_method": pesticide.application_method
-                })
-        
-        if rec.fertilizer_id:
-            fert_result = await db.execute(
-                select(Fertilizer).filter(Fertilizer.id == rec.fertilizer_id)
-            )
-            fertilizer = fert_result.scalars().first()
-            if fertilizer:
-                rec_data.update({
-                    "fertilizer_name": fertilizer.name,
-                    "composition": fertilizer.composition,
-                    "dosage": fertilizer.dosage,
-                    "application_stage": fertilizer.application_stage
-                })
-        
-        recommendations_list.append(rec_data)
+        # Add fertilizers
+        fert_result = await db.execute(select(Fertilizer))
+        fertilizers = fert_result.scalars().all()
+        for idx, fert in enumerate(fertilizers[:2], start=1):
+            recommendations_list.append({
+                "fertilizer_name": fert.name,
+                "composition": fert.composition,
+                "dosage": fert.dosage,
+                "application_stage": fert.application_stage,
+                "similarity_score": max(0.85, round(0.95 - (idx - 1) * 0.05, 2))
+            })
     
     # User data
     user_data = {
@@ -416,7 +452,9 @@ async def generate_pdf_report(
     # Prediction data
     prediction_data = {
         "confidence_score": prediction.confidence_score,
-        "created_at": prediction.created_at.strftime("%B %d, %Y %I:%M %p")
+        "created_at": prediction.created_at.strftime("%B %d, %Y %I:%M %p"),
+        "image_url": prediction.image_url,
+        "annotated_image_url": getattr(prediction, 'annotated_image_url', None) or prediction.image_url
     }
     
     # Generate PDF
@@ -443,3 +481,30 @@ async def generate_pdf_report(
             "Content-Disposition": f"attachment; filename=agrivision_report_{prediction_id}.pdf"
         }
     )
+
+@router.delete("/{prediction_id}", status_code=status.HTTP_200_OK)
+async def delete_prediction(
+    prediction_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Delete a prediction by ID (User can delete own prediction)"""
+    result = await db.execute(
+        select(Prediction).filter(
+            Prediction.id == prediction_id,
+            Prediction.user_id == current_user.id
+        )
+    )
+    prediction = result.scalars().first()
+    
+    if not prediction:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Prediction not found or not authorized to delete"
+        )
+    
+    await db.delete(prediction)
+    await db.commit()
+    
+    return {"message": "Prediction deleted successfully", "id": prediction_id}
+

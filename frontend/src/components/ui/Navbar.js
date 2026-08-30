@@ -20,7 +20,16 @@ const navLinks = [
 
 export default function Navbar() {
   const [open, setOpen] = useState(false)
-  const { user, loading } = useAuth()
+  const { user, profile, loading } = useAuth()
+  const isAdmin = profile?.role === 'admin'
+
+  const activeNavLinks = isAdmin
+    ? [
+        { label: 'Features', href: '/#features' },
+        { label: 'How it works', href: '/#how-it-works' },
+        { label: 'Stats', href: '/#stats' },
+      ]
+    : navLinks
 
   return (
     <header className="sticky top-0 z-40 bg-surface-base/80 backdrop-blur-xl border-b border-border-subtle">
@@ -29,7 +38,7 @@ export default function Navbar() {
           <Logo />
 
           <nav className="hidden md:flex items-center gap-8">
-            {navLinks.map((link) => (
+            {activeNavLinks.map((link) => (
               <a
                 key={link.href}
                 href={link.href}
@@ -44,8 +53,8 @@ export default function Navbar() {
             <ThemeToggle />
             {!loading &&
               (user ? (
-                <Button href="/dashboard" size="md">
-                  Dashboard <ArrowRight className="w-4 h-4" />
+                <Button href={isAdmin ? '/admin' : '/dashboard'} size="md">
+                  {isAdmin ? 'Admin Dashboard' : 'Dashboard'} <ArrowRight className="w-4 h-4" />
                 </Button>
               ) : (
                 <>
@@ -74,7 +83,7 @@ export default function Navbar() {
           animate={{ opacity: 1, y: 0 }}
           className="md:hidden border-t border-border-subtle bg-surface-base px-4 py-4 space-y-2"
         >
-          {navLinks.map((link) => (
+          {activeNavLinks.map((link) => (
             <a
               key={link.href}
               href={link.href}

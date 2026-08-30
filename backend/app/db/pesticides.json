@@ -1,0 +1,270 @@
+[
+    {
+        "id": 1,
+        "disease": "Healthy",
+        "crop_stage": "All",
+        "recommendation": "No pesticide required. Continue regular crop monitoring.",
+        "products": []
+    },
+    {
+        "id": 2,
+        "disease": "Early Blight",
+        "crop_stage": "Vegetative to Fruiting",
+        "products": [
+            {
+                "name": "Mancozeb 75% WP",
+                "type": "Protective Fungicide",
+                "active_ingredient": "Mancozeb",
+                "dosage": "2.5 g/L water",
+                "spray_interval": "7-10 days",
+                "application_method": "Foliar Spray",
+                "priority": 1,
+                "effectiveness": "High",
+                "waiting_period": "7 days",
+                "precautions": [
+                    "Spray during morning or evening.",
+                    "Avoid spraying before rainfall.",
+                    "Wear gloves and mask."
+                ]
+            },
+            {
+                "name": "Chlorothalonil 75% WP",
+                "type": "Protective Fungicide",
+                "active_ingredient": "Chlorothalonil",
+                "dosage": "2 g/L water",
+                "spray_interval": "10 days",
+                "application_method": "Foliar Spray",
+                "priority": 2,
+                "effectiveness": "High"
+            },
+            {
+                "name": "Azoxystrobin 23% SC",
+                "type": "Systemic Fungicide",
+                "active_ingredient": "Azoxystrobin",
+                "dosage": "1 ml/L water",
+                "spray_interval": "10-14 days",
+                "application_method": "Foliar Spray",
+                "priority": 3,
+                "effectiveness": "Very High"
+            }
+        ]
+    },
+    {
+        "id": 3,
+        "disease": "Late Blight",
+        "crop_stage": "Flowering to Fruiting",
+        "products": [
+            {
+                "name": "Metalaxyl + Mancozeb",
+                "type": "Systemic Fungicide",
+                "active_ingredient": "Metalaxyl + Mancozeb",
+                "dosage": "2.5 g/L water",
+                "spray_interval": "7 days",
+                "application_method": "Foliar Spray",
+                "priority": 1,
+                "effectiveness": "Excellent"
+            },
+            {
+                "name": "Cymoxanil + Mancozeb",
+                "type": "Curative Fungicide",
+                "active_ingredient": "Cymoxanil",
+                "dosage": "2 g/L water",
+                "spray_interval": "7-10 days",
+                "application_method": "Foliar Spray",
+                "priority": 2,
+                "effectiveness": "Very High"
+            },
+            {
+                "name": "Copper Oxychloride",
+                "type": "Contact Fungicide",
+                "active_ingredient": "Copper Oxychloride",
+                "dosage": "3 g/L water",
+                "spray_interval": "10 days",
+                "application_method": "Foliar Spray",
+                "priority": 3,
+                "effectiveness": "High"
+            }
+        ]
+    },
+    {
+        "id": 4,
+        "disease": "Bacterial Spot",
+        "crop_stage": "Vegetative",
+        "products": [
+            {
+                "name": "Copper Hydroxide",
+                "type": "Bactericide",
+                "active_ingredient": "Copper Hydroxide",
+                "dosage": "2 g/L water",
+                "spray_interval": "7 days",
+                "application_method": "Foliar Spray",
+                "priority": 1,
+                "effectiveness": "High"
+            },
+            {
+                "name": "Streptocycline",
+                "type": "Antibiotic",
+                "active_ingredient": "Streptomycin",
+                "dosage": "0.5 g/10L water",
+                "spray_interval": "10 days",
+                "application_method": "Foliar Spray",
+                "priority": 2,
+                "effectiveness": "Medium"
+            }
+        ]
+    },
+    {
+        "id": 5,
+        "disease": "Leaf Mold",
+        "crop_stage": "Flowering",
+        "products": [
+            {
+                "name": "Hexaconazole 5% EC",
+                "type": "Systemic Fungicide",
+                "active_ingredient": "Hexaconazole",
+                "dosage": "1 ml/L water",
+                "spray_interval": "10 days",
+                "application_method": "Foliar Spray",
+                "priority": 1,
+                "effectiveness": "Very High"
+            },
+            {
+                "name": "Propiconazole",
+                "type": "Systemic Fungicide",
+                "active_ingredient": "Propiconazole",
+                "dosage": "1 ml/L water",
+                "spray_interval": "10 days",
+                "application_method": "Foliar Spray",
+                "priority": 2,
+                "effectiveness": "High"
+            }
+        ]
+    },
+    {
+        "id": 6,
+        "disease": "Septoria Leaf Spot",
+        "crop_stage": "Vegetative to Fruiting",
+        "products": [
+            {
+                "name": "Mancozeb",
+                "type": "Protective Fungicide",
+                "active_ingredient": "Mancozeb",
+                "dosage": "2.5 g/L water",
+                "spray_interval": "7 days",
+                "application_method": "Foliar Spray",
+                "priority": 1,
+                "effectiveness": "High"
+            },
+            {
+                "name": "Copper Oxychloride",
+                "type": "Contact Fungicide",
+                "active_ingredient": "Copper Oxychloride",
+                "dosage": "3 g/L water",
+                "spray_interval": "10 days",
+                "application_method": "Foliar Spray",
+                "priority": 2,
+                "effectiveness": "High"
+            }
+        ]
+    },
+    {
+        "id": 7,
+        "disease": "Target Spot",
+        "crop_stage": "Flowering to Fruiting",
+        "products": [
+            {
+                "name": "Azoxystrobin",
+                "type": "Systemic Fungicide",
+                "active_ingredient": "Azoxystrobin",
+                "dosage": "1 ml/L water",
+                "spray_interval": "10 days",
+                "application_method": "Foliar Spray",
+                "priority": 1,
+                "effectiveness": "Excellent"
+            },
+            {
+                "name": "Difenoconazole",
+                "type": "Systemic Fungicide",
+                "active_ingredient": "Difenoconazole",
+                "dosage": "0.5 ml/L water",
+                "spray_interval": "10 days",
+                "application_method": "Foliar Spray",
+                "priority": 2,
+                "effectiveness": "Very High"
+            }
+        ]
+    },
+    {
+        "id": 8,
+        "disease": "Spider Mites",
+        "crop_stage": "All",
+        "products": [
+            {
+                "name": "Abamectin 1.9 EC",
+                "type": "Acaricide",
+                "active_ingredient": "Abamectin",
+                "dosage": "0.5 ml/L water",
+                "spray_interval": "10 days",
+                "application_method": "Foliar Spray",
+                "priority": 1,
+                "effectiveness": "Excellent"
+            },
+            {
+                "name": "Spiromesifen",
+                "type": "Miticide",
+                "active_ingredient": "Spiromesifen",
+                "dosage": "1 ml/L water",
+                "spray_interval": "14 days",
+                "application_method": "Foliar Spray",
+                "priority": 2,
+                "effectiveness": "Very High"
+            }
+        ]
+    },
+    {
+        "id": 9,
+        "disease": "Tomato Mosaic Virus",
+        "crop_stage": "All",
+        "recommendation": "No chemical pesticide cures viral diseases. Remove infected plants immediately.",
+        "products": [
+            {
+                "name": "Neem Oil",
+                "type": "Preventive",
+                "active_ingredient": "Azadirachtin",
+                "dosage": "3 ml/L water",
+                "spray_interval": "7 days",
+                "application_method": "Foliar Spray",
+                "priority": 1,
+                "effectiveness": "Preventive Only"
+            }
+        ]
+    },
+    {
+        "id": 10,
+        "disease": "Tomato Yellow Leaf Curl Virus",
+        "crop_stage": "All",
+        "recommendation": "Control whiteflies to reduce virus spread.",
+        "products": [
+            {
+                "name": "Imidacloprid 17.8 SL",
+                "type": "Insecticide",
+                "active_ingredient": "Imidacloprid",
+                "dosage": "0.3 ml/L water",
+                "spray_interval": "10 days",
+                "application_method": "Foliar Spray",
+                "priority": 1,
+                "effectiveness": "Excellent"
+            },
+            {
+                "name": "Thiamethoxam 25 WG",
+                "type": "Systemic Insecticide",
+                "active_ingredient": "Thiamethoxam",
+                "dosage": "0.25 g/L water",
+                "spray_interval": "10 days",
+                "application_method": "Foliar Spray",
+                "priority": 2,
+                "effectiveness": "Very High"
+            }
+        ]
+    }
+]

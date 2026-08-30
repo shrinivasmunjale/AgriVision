@@ -33,8 +33,24 @@ const faqs = [
   },
 ]
 
+import { useAuth } from '@/contexts/AuthContext'
+import { useRouter } from 'next/navigation'
+import { useEffect } from 'react'
+
 export default function FaqPage() {
+  const { profile, loading } = useAuth()
+  const router = useRouter()
   const [open, setOpen] = useState(0)
+
+  useEffect(() => {
+    if (!loading && profile?.role === 'admin') {
+      router.push('/admin')
+    }
+  }, [profile, loading, router])
+
+  if (!loading && profile?.role === 'admin') {
+    return null
+  }
 
   return (
     <Layout>

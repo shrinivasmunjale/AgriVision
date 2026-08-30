@@ -11,15 +11,18 @@ import { motion } from 'framer-motion'
 import Link from 'next/link'
 import WeatherWidget from '@/components/WeatherWidget'
 import FarmingTips from '@/components/FarmingTips'
+import { useI18n } from '@/contexts/I18nContext'
 
 export default function DashboardPage() {
   const { user, loading, getAccessToken, profile } = useAuth()
   const router = useRouter()
+  const { t } = useI18n()
 
   useEffect(() => {
-    // Allow viewing dashboard without login
-    // Redirect to login only when trying to access protected features
-  }, [user, loading, router])
+    if (!loading && profile?.role === 'admin') {
+      router.push('/admin')
+    }
+  }, [profile, loading, router])
 
   const { data: predictions, isLoading } = useQuery({
     queryKey: ['predictions'],
@@ -28,7 +31,7 @@ export default function DashboardPage() {
       const response = await predictionsAPI.getAll({ limit: 5 }, token)
       return response.data
     },
-    enabled: !!user,
+    enabled: !!user && profile?.role !== 'admin',
   })
 
   if (loading) {
@@ -40,6 +43,10 @@ export default function DashboardPage() {
         </div>
       </div>
     )
+  }
+
+  if (profile?.role === 'admin') {
+    return null
   }
 
   const healthyCount = predictions?.filter(p => p.disease_name === 'Healthy').length || 0
@@ -55,10 +62,10 @@ export default function DashboardPage() {
           className="mb-8"
         >
           <h1 className="text-3xl font-bold text-text-primary mb-2">
-            Welcome back, {profile?.name || 'Farmer'}!
+            {t('dashboard.welcome')}, {profile?.name || 'Farmer'}!
           </h1>
           <p className="text-text-secondary">
-            Monitor your crop health and get AI-powered insights
+            {t('dashboard.subtitle')}
           </p>
         </motion.div>
 
@@ -71,7 +78,7 @@ export default function DashboardPage() {
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-text-secondary text-sm mb-1">Total Analyzed</p>
+                <p className="text-text-secondary text-sm mb-1">{t('dashboard.totalAnalyzed')}</p>
                 <p className="text-3xl font-bold text-text-primary">{totalCount}</p>
               </div>
               <div className="w-12 h-12 bg-primary-400/20 rounded-xl flex items-center justify-center">
@@ -88,7 +95,7 @@ export default function DashboardPage() {
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-text-secondary text-sm mb-1">Healthy Ratio</p>
+                <p className="text-text-secondary text-sm mb-1">{t('dashboard.healthyRatio')}</p>
                 <p className="text-3xl font-bold text-text-primary">{healthyRatio}%</p>
               </div>
               <div className="w-12 h-12 bg-primary-400/20 rounded-xl flex items-center justify-center">
@@ -105,7 +112,7 @@ export default function DashboardPage() {
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-text-secondary text-sm mb-1">Issues Found</p>
+                <p className="text-text-secondary text-sm mb-1">{t('dashboard.issuesFound')}</p>
                 <p className="text-3xl font-bold text-text-primary">{totalCount - healthyCount}</p>
               </div>
               <div className="w-12 h-12 bg-accent/20 rounded-xl flex items-center justify-center">
@@ -126,9 +133,10 @@ export default function DashboardPage() {
             className="flex items-center justify-center gap-3 w-full py-4 bg-primary text-white rounded-full font-semibold hover:bg-primary-600 transition-colors"
           >
             <Camera className="w-5 h-5" />
-            Scan Tomato Leaves Now
+            {t('dashboard.scanNow')}
           </Link>
         </motion.div>
+
 
         {/* Drone Imagery Showcase */}
         <motion.div

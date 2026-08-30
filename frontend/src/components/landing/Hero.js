@@ -9,7 +9,8 @@ import Badge from '@/components/ui/Badge'
 import { useAuth } from '@/contexts/AuthContext'
 
 export default function Hero() {
-  const { user, loading } = useAuth()
+  const { user, profile, loading } = useAuth()
+  const isAdmin = profile?.role === 'admin'
 
   return (
     <section className="relative overflow-hidden">
@@ -37,8 +38,8 @@ export default function Hero() {
           </p>
           <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
             {!loading && user ? (
-              <Button href="/scan" size="lg">
-                Scan Your Crops <ArrowRight className="w-5 h-5" />
+              <Button href={isAdmin ? '/admin' : '/scan'} size="lg">
+                {isAdmin ? 'Admin Dashboard' : 'Scan Your Crops'} <ArrowRight className="w-5 h-5" />
               </Button>
             ) : (
               <Button href="/auth/register" size="lg">

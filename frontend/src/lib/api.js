@@ -70,6 +70,10 @@ export const predictionsAPI = {
     api.get(`/predictions/${id}`, {
       headers: { Authorization: `Bearer ${token}` },
     }),
+  delete: (id, token) =>
+    api.delete(`/predictions/${id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
   downloadReport: (id, token) =>
     api.get(`/predictions/${id}/report`, {
       headers: { Authorization: `Bearer ${token}` },
@@ -102,6 +106,25 @@ export const adminAPI = {
     api.get('/admin/analytics', {
       headers: { Authorization: `Bearer ${token}` },
     }),
+  getPredictions: (params, token) =>
+    api.get('/admin/predictions', {
+      params,
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  deletePrediction: (id, token) =>
+    api.delete(`/admin/predictions/${id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  getContacts: (params, token) =>
+    api.get('/admin/contacts', {
+      params,
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  deleteContact: (id, token) =>
+    api.delete(`/admin/contacts/${id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
 }
 
 export default api
+

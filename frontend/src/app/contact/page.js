@@ -7,12 +7,29 @@ import Layout from '@/components/Layout'
 import Button from '@/components/ui/Button'
 import Card from '@/components/ui/Card'
 import { miscAPI } from '@/lib/api'
+import { useAuth } from '@/contexts/AuthContext'
+import { useRouter } from 'next/navigation'
+import { useEffect } from 'react'
+import { useI18n } from '@/contexts/I18nContext'
 
 export default function ContactPage() {
+  const { profile, loading: authLoading } = useAuth()
+  const router = useRouter()
+  const { t } = useI18n()
   const [form, setForm] = useState({ name: '', email: '', subject: '', message: '' })
   const [submitting, setSubmitting] = useState(false)
   const [success, setSuccess] = useState('')
   const [error, setError] = useState('')
+
+  useEffect(() => {
+    if (!authLoading && profile?.role === 'admin') {
+      router.push('/admin')
+    }
+  }, [profile, authLoading, router])
+
+  if (!authLoading && profile?.role === 'admin') {
+    return null
+  }
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value })
 
@@ -23,7 +40,7 @@ export default function ContactPage() {
     setSuccess('')
     try {
       const res = await miscAPI.contact(form)
-      setSuccess(res.data.message || 'Message sent!')
+      setSuccess(t('contact.sentSuccess') || res.data.message || 'Message sent!')
       setForm({ name: '', email: '', subject: '', message: '' })
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to send message')
@@ -42,10 +59,10 @@ export default function ContactPage() {
         >
           <div className="flex items-center gap-3 mb-2">
             <MessageSquare className="w-8 h-8 text-primary-400" />
-            <h1 className="text-3xl font-bold text-text-primary">Contact Us</h1>
+            <h1 className="text-3xl font-bold text-text-primary">{t('contact.title')}</h1>
           </div>
           <p className="text-text-secondary mb-8">
-            Questions, feedback, or support? Send us a message.
+            {t('contact.subtitle')}
           </p>
 
           <Card>
@@ -58,7 +75,7 @@ export default function ContactPage() {
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <FieldBox icon={User} label="Name">
+                <FieldBox icon={User} label={t('contact.name')}>
                   <input
                     name="name"
                     value={form.name}
@@ -67,7 +84,7 @@ export default function ContactPage() {
                     placeholder="Your name"
                   />
                 </FieldBox>
-                <FieldBox icon={Mail} label="Email">
+                <FieldBox icon={Mail} label={t('contact.email')}>
                   <input
                     name="email"
                     type="email"
@@ -79,7 +96,7 @@ export default function ContactPage() {
                   />
                 </FieldBox>
               </div>
-              <FieldBox icon={Tag} label="Subject">
+              <FieldBox icon={Tag} label={t('contact.subject')}>
                 <input
                   name="subject"
                   value={form.subject}
@@ -88,7 +105,7 @@ export default function ContactPage() {
                   placeholder="How can we help?"
                 />
               </FieldBox>
-              <FieldBox icon={MessageSquare} label="Message">
+              <FieldBox icon={MessageSquare} label={t('contact.message')}>
                 <textarea
                   name="message"
                   required
@@ -100,7 +117,7 @@ export default function ContactPage() {
                 />
               </FieldBox>
               <Button type="submit" loading={submitting} className="w-full">
-                <Send className="w-4 h-4" /> Send Message
+                <Send className="w-4 h-4" /> {t('contact.send')}
               </Button>
             </form>
           </Card>
@@ -109,6 +126,7 @@ export default function ContactPage() {
     </Layout>
   )
 }
+
 
 function FieldBox({ icon: Icon, label, children }) {
   return (

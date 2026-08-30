@@ -16,12 +16,21 @@ from app.models.user import User
 import seed
 
 
+from sqlalchemy import text
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("Creating database tables...")
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        # Auto-migrate annotated_image_url column if missing
+        try:
+            await conn.execute(text("ALTER TABLE predictions ADD COLUMN annotated_image_url VARCHAR(512);"))
+            print("Added annotated_image_url column to predictions table.")
+        except Exception:
+            # Column likely already exists
+            pass
 
     async with SessionLocal() as db:
         result = await db.execute(select(User))

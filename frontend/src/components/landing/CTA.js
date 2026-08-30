@@ -6,7 +6,8 @@ import Button from '@/components/ui/Button'
 import { useAuth } from '@/contexts/AuthContext'
 
 export default function CTA() {
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
+  const isAdmin = profile?.role === 'admin'
 
   return (
     <section className="pb-20 lg:pb-28">
@@ -31,12 +32,12 @@ export default function CTA() {
             </p>
             <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
               <Button
-                href={user ? '/scan' : '/auth/register'}
+                href={user ? (isAdmin ? '/admin' : '/scan') : '/auth/register'}
                 variant="secondary"
                 size="lg"
                 className="!bg-white !text-primary hover:!bg-white/90"
               >
-                Get Started Free
+                {isAdmin ? 'Admin Dashboard' : 'Get Started Free'}
               </Button>
               {!user && (
                 <Button

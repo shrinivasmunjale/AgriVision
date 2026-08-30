@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy import func, desc
-from typing import List
+from sqlalchemy import func, desc, or_
+from typing import List, Optional
 from datetime import datetime
 
 from app.db.session import get_db
@@ -13,12 +13,14 @@ from app.models.pesticide import Pesticide
 from app.models.fertilizer import Fertilizer
 from app.models.audit_log import AuditLog
 from app.models.prediction import Prediction
+from app.models.contact import ContactMessage
 from app.schemas.disease import DiseaseCreate, DiseaseUpdate, DiseaseResponse
 from app.schemas.pesticide import PesticideCreate, PesticideUpdate, PesticideResponse
 from app.schemas.fertilizer import FertilizerCreate, FertilizerUpdate, FertilizerResponse
 
 router = APIRouter()
 require_admin = RoleChecker(["admin"])
+
 
 # ==================== DISEASE CRUD ====================
 
@@ -390,3 +392,170 @@ async def get_analytics(
             for audit in recent_audits
         ]
     }
+
+# ==================== ALL USER PREDICTIONS ====================
+
+@router.get("/predictions")
+async def get_all_user_predictions(
+    skip: int = 0,
+    limit: int = 50,
+    search: Optional[str] = None,
+    current_user: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get all user predictions with user and disease info for admin dashboard"""
+    query = (
+        select(Prediction, User, Disease)
+        .join(User, Prediction.user_id == User.id, isouter=True)
+        .join(Disease, Prediction.disease_id == Disease.id, isouter=True)
+    )
+    
+    if search:
+        search_pattern = f"%{search.strip().lower()}%"
+        query = query.filter(
+            or_(
+                func.lower(User.name).like(search_pattern),
+                func.lower(User.email).like(search_pattern),
+                func.lower(Disease.name).like(search_pattern)
+            )
+        )
+    
+    query = query.order_by(desc(Prediction.created_at)).offset(skip).limit(limit)
+    result = await db.execute(query)
+    rows = result.all()
+    
+    predictions_data = []
+    for pred, usr, dis in rows:
+        predictions_data.append({
+            "id": pred.id,
+            "user_id": pred.user_id,
+            "user_name": usr.name if usr else "Unknown User",
+            "user_email": usr.email if usr else "N/A",
+            "farm_name": usr.farm_name if usr else None,
+            "image_url": pred.image_url,
+            "annotated_image_url": getattr(pred, "annotated_image_url", None) or pred.image_url,
+            "disease_id": pred.disease_id,
+            "disease_name": dis.name if dis else ("Healthy" if pred.confidence_score > 0 else "Unknown"),
+            "confidence_score": pred.confidence_score,
+            "created_at": pred.created_at
+        })
+    
+    # Also get total count
+    count_query = select(func.count(Prediction.id))
+    total_result = await db.execute(count_query)
+    total_count = total_result.scalar() or 0
+    
+    return {
+        "items": predictions_data,
+        "total": total_count,
+        "skip": skip,
+        "limit": limit
+    }
+
+@router.delete("/predictions/{prediction_id}", status_code=status.HTTP_200_OK)
+async def admin_delete_prediction(
+    prediction_id: str,
+    current_user: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    """Admin endpoint to delete any prediction"""
+    result = await db.execute(select(Prediction).filter(Prediction.id == prediction_id))
+    prediction = result.scalars().first()
+    
+    if not prediction:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Prediction not found"
+        )
+    
+    # Audit log
+    audit = AuditLog(
+        admin_id=current_user.id,
+        action="DELETE",
+        entity="prediction",
+        entity_id=str(prediction.id)
+    )
+    db.add(audit)
+    
+    await db.delete(prediction)
+    await db.commit()
+    
+    return {"message": "Prediction deleted by admin", "id": prediction_id}
+
+# ==================== CONTACT MESSAGES ====================
+
+@router.get("/contacts")
+async def get_all_contacts(
+    skip: int = 0,
+    limit: int = 50,
+    search: Optional[str] = None,
+    current_user: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get all submitted contact messages for admin review"""
+    query = select(ContactMessage)
+    
+    if search:
+        search_pattern = f"%{search.strip().lower()}%"
+        query = query.filter(
+            or_(
+                func.lower(ContactMessage.name).like(search_pattern),
+                func.lower(ContactMessage.email).like(search_pattern),
+                func.lower(ContactMessage.subject).like(search_pattern),
+                func.lower(ContactMessage.message).like(search_pattern)
+            )
+        )
+    
+    query = query.order_by(desc(ContactMessage.created_at)).offset(skip).limit(limit)
+    result = await db.execute(query)
+    messages = result.scalars().all()
+    
+    total_result = await db.execute(select(func.count(ContactMessage.id)))
+    total_count = total_result.scalar() or 0
+    
+    return {
+        "items": [
+            {
+                "id": msg.id,
+                "name": msg.name,
+                "email": msg.email,
+                "subject": msg.subject,
+                "message": msg.message,
+                "created_at": msg.created_at
+            }
+            for msg in messages
+        ],
+        "total": total_count,
+        "skip": skip,
+        "limit": limit
+    }
+
+@router.delete("/contacts/{contact_id}", status_code=status.HTTP_200_OK)
+async def delete_contact_message(
+    contact_id: str,
+    current_user: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    """Delete a contact message by admin"""
+    result = await db.execute(select(ContactMessage).filter(ContactMessage.id == contact_id))
+    msg = result.scalars().first()
+    
+    if not msg:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Contact message not found"
+        )
+    
+    audit = AuditLog(
+        admin_id=current_user.id,
+        action="DELETE",
+        entity="contact_message",
+        entity_id=str(msg.id)
+    )
+    db.add(audit)
+    
+    await db.delete(msg)
+    await db.commit()
+    
+    return {"message": "Contact message deleted successfully", "id": contact_id}
+

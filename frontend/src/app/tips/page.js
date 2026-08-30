@@ -7,16 +7,32 @@ import { Lightbulb, RefreshCw } from 'lucide-react'
 import Layout from '@/components/Layout'
 import Card from '@/components/ui/Card'
 import Badge from '@/components/ui/Badge'
-import { miscAPI } from '@/lib/api'
+import { useAuth } from '@/contexts/AuthContext'
+import { useRouter } from 'next/navigation'
+import { useEffect } from 'react'
 
 export default function TipsPage() {
+  const { profile, loading: authLoading } = useAuth()
+  const router = useRouter()
+
+  useEffect(() => {
+    if (!authLoading && profile?.role === 'admin') {
+      router.push('/admin')
+    }
+  }, [profile, authLoading, router])
+
   const { data, isLoading } = useQuery({
     queryKey: ['tips'],
     queryFn: async () => {
       const response = await miscAPI.tips()
       return response.data.tips
     },
+    enabled: profile?.role !== 'admin'
   })
+
+  if (!authLoading && profile?.role === 'admin') {
+    return null
+  }
 
   return (
     <Layout>

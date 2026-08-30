@@ -51,7 +51,12 @@ export default function UserMenu() {
               <p className="text-xs text-text-secondary truncate">{profile?.email}</p>
             </div>
             <div className="py-1">
-              <MenuItem href="/dashboard" icon={LayoutDashboard} label={t('nav.home')} onClick={() => setOpen(false)} />
+              <MenuItem
+                href={profile?.role === 'admin' ? '/admin' : '/dashboard'}
+                icon={LayoutDashboard}
+                label={profile?.role === 'admin' ? 'Admin Dashboard' : t('nav.home')}
+                onClick={() => setOpen(false)}
+              />
               <MenuItem href="/profile" icon={User} label={t('nav.profile')} onClick={() => setOpen(false)} />
               <MenuItem href="/profile?tab=password" icon={KeyRound} label={t('nav.changePassword')} onClick={() => setOpen(false)} />
             </div>
