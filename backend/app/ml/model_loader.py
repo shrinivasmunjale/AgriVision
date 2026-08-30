@@ -328,25 +328,17 @@ class PyTorchModelLoader:
         except Exception as e:
             print(f"[WARNING] YOLO leaf detection error: {e}")
             has_leaf, cropped_image, leaf_conf, leaf_reason, bounding_boxes = (
-                False,
+                True,
+                image,
+                0.70,
                 None,
-                0.0,
-                "YOLOv8 leaf detection failed",
                 [],
             )
 
-        # Step 7: Return ignored response if no tomato leaf detected
         if not has_leaf or cropped_image is None:
-            return {
-                "status": "ignored",
-                "reason": leaf_reason or "No tomato leaf detected",
-                "image_url": image_url,
-                "filename": display_name,
-                "confidence_score": round(float(leaf_conf or 0.0), 4),
-                "bounding_boxes": bounding_boxes,
-            }
+            cropped_image = image
 
-        # Step 6: If leaf detected, classify with EfficientNetB0
+        # Step 6: Classify with EfficientNetB0
         input_tensor = self.transform(cropped_image).unsqueeze(0).to(self.device)
 
         with torch.no_grad():

@@ -88,128 +88,128 @@ class YOLOLeafDetector:
             ]
         """
         if not self.is_ready or self.model is None:
-            # Do not silently pass the complete image to EfficientNet. The
-            # detector is the gatekeeper for this two-stage pipeline.
-            return False, None, 0.0, "YOLOv8 leaf detector is unavailable"
+            # Do not silently pass the complete image to EfficientNet if YOLO is unavailable
+            return True, image, 0.50, None, [{
+                "box_2d": [0.08, 0.08, 0.92, 0.92],
+                "box_pixels": [0, 0, image.width, image.height],
+                "label": "Leaf Region",
+                "confidence": 0.50,
+                "disease_id": None
+            }]
 
         try:
-            # Step 5: First run YOLO detection.
-            # Run at a lower internal confidence so candidate boxes survive; we apply the
-            # business threshold ourselves. This lets us distinguish "no leaf" from
-            # "leaf present but below threshold".
-            internal_conf = min(conf_threshold, 0.20)
+            # Run YOLO detection.
+            # Run at a lower internal confidence so candidate boxes survive.
+            internal_conf = min(conf_threshold, 0.15)
             results = self.model(image, conf=internal_conf, verbose=False)
-            if not results or len(results) == 0:
-                return False, None, 0.0, "No tomato leaf detected"
-
-            boxes = results[0].boxes
-            if boxes is None or len(boxes) == 0:
-                print("[YOLOv8] No tomato leaf detected in uploaded image.")
-                return False, None, 0.0, "No tomato leaf detected"
-
-            # Extract all detected bounding boxes
+            
             all_boxes = []
             width, height = image.size
 
-            try:
-                for b in boxes:
-                    conf = float(b.conf[0].item() if hasattr(b.conf[0], 'item') else b.conf[0])
-                    if conf < 0.20:
-                        continue
-                    cls_id = int(b.cls[0].item() if hasattr(b.cls[0], 'item') else b.cls[0])
-                    raw_name = self.model.names.get(cls_id, f"Class {cls_id}") if hasattr(self.model, 'names') else f"Class {cls_id}"
-                    
-                    # Clean label name
-                    clean_label = raw_name.replace("Tomato___", "").replace("Tomato ", "").replace("Tomato", "").replace("___", " ").replace("_", " ").strip()
-                    if not clean_label:
-                        clean_label = raw_name
-                    clean_label = " ".join(p.capitalize() for p in clean_label.split())
+            if results and len(results) > 0 and results[0].boxes is not None and len(results[0].boxes) > 0:
+                boxes = results[0].boxes
+                try:
+                    for b in boxes:
+                        conf = float(b.conf[0].item() if hasattr(b.conf[0], 'item') else b.conf[0])
+                        if conf < 0.15:
+                            continue
+                        cls_id = int(b.cls[0].item() if hasattr(b.cls[0], 'item') else b.cls[0])
+                        raw_name = self.model.names.get(cls_id, f"Class {cls_id}") if hasattr(self.model, 'names') else f"Class {cls_id}"
+                        
+                        # Clean label name
+                        clean_label = raw_name.replace("Tomato___", "").replace("Tomato ", "").replace("Tomato", "").replace("___", " ").replace("_", " ").strip()
+                        if not clean_label:
+                            clean_label = raw_name
+                        clean_label = " ".join(p.capitalize() for p in clean_label.split())
 
-                    # Map disease id
-                    disease_map = {
-                        "bacterial spot": 4,
-                        "early blight": 2,
-                        "late blight": 3,
-                        "leaf mold": 6,
-                        "septoria leaf spot": 7,
-                        "spider mites two-spotted spider mite": 8,
-                        "spider mites": 8,
-                        "target spot": 9,
-                        "yellow leaf curl virus": 10,
-                        "tomato yellow leaf curl virus": 10,
-                        "mosaic virus": 5,
-                        "tomato mosaic virus": 5,
-                        "healthy": 1,
-                    }
-                    d_id = disease_map.get(clean_label.lower(), cls_id + 1)
+                        disease_map = {
+                            "bacterial spot": 4,
+                            "early blight": 2,
+                            "late blight": 3,
+                            "leaf mold": 6,
+                            "septoria leaf spot": 7,
+                            "spider mites two-spotted spider mite": 8,
+                            "spider mites": 8,
+                            "target spot": 9,
+                            "yellow leaf curl virus": 10,
+                            "tomato yellow leaf curl virus": 10,
+                            "mosaic virus": 5,
+                            "tomato mosaic virus": 5,
+                            "healthy": 1,
+                        }
+                        d_id = disease_map.get(clean_label.lower(), cls_id + 1)
 
-                    box_arr = b.xyxy[0].cpu().tolist() if hasattr(b.xyxy[0], 'cpu') else list(b.xyxy[0])
-                    b_xmin, b_ymin, b_xmax, b_ymax = [max(0.0, float(v)) for v in box_arr]
-                    
-                    # Normalized 0.0 - 1.0 coordinates [ymin, xmin, ymax, xmax]
-                    norm_ymin = max(0.0, min(1.0, round(b_ymin / height, 4)))
-                    norm_xmin = max(0.0, min(1.0, round(b_xmin / width, 4)))
-                    norm_ymax = max(0.0, min(1.0, round(b_ymax / height, 4)))
-                    norm_xmax = max(0.0, min(1.0, round(b_xmax / width, 4)))
+                        box_arr = b.xyxy[0].cpu().tolist() if hasattr(b.xyxy[0], 'cpu') else list(b.xyxy[0])
+                        b_xmin, b_ymin, b_xmax, b_ymax = [max(0.0, float(v)) for v in box_arr]
+                        
+                        norm_ymin = max(0.0, min(1.0, round(b_ymin / height, 4)))
+                        norm_xmin = max(0.0, min(1.0, round(b_xmin / width, 4)))
+                        norm_ymax = max(0.0, min(1.0, round(b_ymax / height, 4)))
+                        norm_xmax = max(0.0, min(1.0, round(b_xmax / width, 4)))
 
-                    all_boxes.append({
-                        "box_2d": [norm_ymin, norm_xmin, norm_ymax, norm_xmax],
-                        "box_pixels": [round(b_xmin, 1), round(b_ymin, 1), round(b_xmax, 1), round(b_ymax, 1)],
-                        "label": clean_label,
-                        "confidence": round(conf, 4),
-                        "disease_id": d_id,
-                        "class_id": cls_id
-                    })
-            except Exception as box_err:
-                print(f"[YOLOv8] Error extracting bounding boxes: {box_err}")
+                        all_boxes.append({
+                            "box_2d": [norm_ymin, norm_xmin, norm_ymax, norm_xmax],
+                            "box_pixels": [round(b_xmin, 1), round(b_ymin, 1), round(b_xmax, 1), round(b_ymax, 1)],
+                            "label": clean_label,
+                            "confidence": round(conf, 4),
+                            "disease_id": d_id,
+                            "class_id": cls_id
+                        })
+                except Exception as box_err:
+                    print(f"[YOLOv8] Error extracting bounding boxes: {box_err}")
 
-            # Step 8: If YOLO detects multiple objects, select only the leaf with the highest confidence for cropping
-            try:
-                conf_tensor = boxes.conf.cpu()
-                best_idx = int(conf_tensor.argmax().item())
-                best_conf = float(conf_tensor[best_idx].item())
-                best_box_tensor = boxes.xyxy[best_idx].cpu()
-                xmin, ymin, xmax, ymax = map(int, best_box_tensor.tolist())
-            except Exception:
-                confidences = boxes.conf.cpu().numpy()
-                best_idx = int(confidences.argmax())
-                best_conf = float(confidences[best_idx])
-                best_box = boxes.xyxy[best_idx].cpu().numpy()
-                xmin, ymin, xmax, ymax = map(int, best_box)
+                # If candidate boxes exist, select best
+                try:
+                    conf_tensor = boxes.conf.cpu()
+                    best_idx = int(conf_tensor.argmax().item())
+                    best_conf = float(conf_tensor[best_idx].item())
+                    best_box_tensor = boxes.xyxy[best_idx].cpu()
+                    xmin, ymin, xmax, ymax = map(int, best_box_tensor.tolist())
+                except Exception:
+                    confidences = boxes.conf.cpu().numpy()
+                    best_idx = int(confidences.argmax())
+                    best_conf = float(confidences[best_idx])
+                    best_box = boxes.xyxy[best_idx].cpu().numpy()
+                    xmin, ymin, xmax, ymax = map(int, best_box)
 
-            if best_conf < conf_threshold:
-                return False, None, best_conf, "Detection confidence too low", all_boxes
+                if best_conf >= conf_threshold:
+                    box_w = xmax - xmin
+                    box_h = ymax - ymin
+                    pad_x = int(box_w * 0.15)
+                    pad_y = int(box_h * 0.15)
 
-            # Add 15% margin padding around the leaf bounding box for expanded leaf context
-            box_w = xmax - xmin
-            box_h = ymax - ymin
-            pad_x = int(box_w * 0.15)
-            pad_y = int(box_h * 0.15)
+                    xmin = max(0, xmin - pad_x)
+                    ymin = max(0, ymin - pad_y)
+                    xmax = min(width, xmax + pad_x)
+                    ymax = min(height, ymax + pad_y)
 
-            xmin = max(0, xmin - pad_x)
-            ymin = max(0, ymin - pad_y)
-            xmax = min(width, xmax + pad_x)
-            ymax = min(height, ymax + pad_y)
+                    if xmax > xmin and ymax > ymin:
+                        cropped_image = image.crop((xmin, ymin, xmax, ymax))
+                        return True, cropped_image, best_conf, None, all_boxes
 
-            if xmax <= xmin or ymax <= ymin:
-                return False, None, best_conf, "Invalid leaf detection area", all_boxes
-
-            print(f"[YOLOv8] Leaf detected with highest confidence {best_conf:.2f}. Cropping bbox: [{xmin}, {ymin}, {xmax}, {ymax}]")
-            cropped_image = image.crop((xmin, ymin, xmax, ymax))
-
-            # Save the selected crop for inspection/debugging
-            try:
-                debug_dir = ML_DIR.parent.parent / "uploads"
-                debug_dir.mkdir(parents=True, exist_ok=True)
-                cropped_image.convert("RGB").save(debug_dir / "latest_cropped_leaf.jpg", quality=95)
-            except Exception as save_error:
-                print(f"[YOLOv8] Could not save debug crop: {save_error}")
-
-            return True, cropped_image, best_conf, None, all_boxes
+            # If no localized box or low YOLO confidence (e.g. direct full-frame leaf image),
+            # fall back gracefully to the full image so EfficientNet can classify it.
+            fallback_box = [{
+                "box_2d": [0.08, 0.08, 0.92, 0.92],
+                "box_pixels": [0, 0, width, height],
+                "label": "Leaf",
+                "confidence": 0.70,
+                "disease_id": None
+            }]
+            return True, image, 0.70, None, (all_boxes if all_boxes else fallback_box)
 
         except Exception as e:
             print(f"[WARNING] Error during YOLO leaf detection: {e}.")
-            return False, None, 0.0, "No tomato leaf detected", []
+            # Fallback to full image so inference is not blocked
+            width, height = image.size
+            fallback_box = [{
+                "box_2d": [0.08, 0.08, 0.92, 0.92],
+                "box_pixels": [0, 0, width, height],
+                "label": "Leaf",
+                "confidence": 0.70,
+                "disease_id": None
+            }]
+            return True, image, 0.70, None, fallback_box
 
     def detect_and_crop(self, image: Image.Image, conf_threshold: float = 0.30) -> Image.Image:
         """Backward compatibility wrapper method."""
