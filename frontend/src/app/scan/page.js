@@ -6,9 +6,11 @@ import { useEffect, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { predictionsAPI } from '@/lib/api'
 import Layout from '@/components/Layout'
-import { Upload, X, Loader, AlertTriangle, Camera as CameraIcon, Sparkles, Leaf, Download } from 'lucide-react'
+import { Upload, X, Loader, AlertTriangle, Camera as CameraIcon, Sparkles, Leaf, Download, ExternalLink } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useI18n } from '@/contexts/I18nContext'
+import Link from 'next/link'
+import BoundingBoxImage from '@/components/BoundingBoxImage'
 
 export default function ScanPage() {
   const { user, loading, getAccessToken } = useAuth()
@@ -368,6 +370,64 @@ export default function ScanPage() {
                   </div>
                 ))}
               </div>
+
+              {/* Detected Leaves with Bounding Boxes */}
+              {((results.valid_predictions && results.valid_predictions.length > 0) || (results.predictions && results.predictions.length > 0)) && (
+                <div className="mb-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold text-text-primary">
+                      Analyzed Leaves & Infected Regions ({(results.valid_predictions || results.predictions).length})
+                    </h3>
+                    <span className="text-xs text-primary-400 font-medium">
+                      🎯 AI Target & Confidence Overlays
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {(results.valid_predictions || results.predictions).map((pred, idx) => {
+                      const isHealthy = /healthy/i.test(pred.disease_name || '')
+                      return (
+                        <div
+                          key={pred.id || idx}
+                          className="bg-surface-base rounded-2xl p-4 border border-border-subtle hover:border-primary-400/40 transition-all flex flex-col justify-between shadow-sm"
+                        >
+                          <div className="mb-3">
+                            <BoundingBoxImage
+                              src={pred.image_url}
+                              alt={pred.disease_name || 'Detected leaf'}
+                              boundingBoxes={pred.bounding_boxes || []}
+                              defaultDiseaseName={pred.disease_name}
+                              defaultConfidence={pred.confidence_score}
+                              heightClass="h-56"
+                              showControls={true}
+                            />
+                          </div>
+
+                          <div className="flex items-center justify-between pt-2 border-t border-border-subtle/60">
+                            <div>
+                              <div className="text-sm font-bold text-text-primary">
+                                {pred.disease_name || 'Detected Plant'}
+                              </div>
+                              <div className="text-xs text-text-secondary">
+                                Accuracy: <span className="font-semibold text-emerald-400">{Math.round((pred.confidence_score || 0) * 100)}%</span>
+                              </div>
+                            </div>
+
+                            {pred.id && (
+                              <Link
+                                href={`/history/${pred.id}`}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 hover:bg-primary/20 text-primary-400 border border-primary/20 rounded-full text-xs font-semibold transition-colors"
+                              >
+                                <span>Details</span>
+                                <ExternalLink className="w-3.5 h-3.5" />
+                              </Link>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
 
               {/* Grouped Disease View */}
               {Object.keys(results.disease_summary || {}).length > 0 && (

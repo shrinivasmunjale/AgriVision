@@ -68,6 +68,7 @@ class MLInferenceService:
                         "disease_id": item.get("disease_id"),
                         "disease_name": item.get("disease_name"),
                         "confidence_score": item.get("confidence_score", 0.0),
+                        "bounding_boxes": item.get("bounding_boxes", []),
                     })
                 else:
                     ignored.append({
@@ -76,6 +77,7 @@ class MLInferenceService:
                         "filename": item.get("filename") or self._derive_name(image_urls[idx] if idx < len(image_urls) else "", fname),
                         "reason": item.get("reason") or item.get("message") or "Invalid image",
                         "confidence_score": item.get("confidence_score", 0.0),
+                        "bounding_boxes": item.get("bounding_boxes", []),
                     })
             return {"valid_predictions": valid, "ignored_images": ignored}
 
@@ -112,7 +114,13 @@ class MLInferenceService:
                 "filename": self._derive_name(url, fname),
                 "disease_id": disease["disease_id"],
                 "disease_name": disease["disease_name"],
-                "confidence_score": round(max(0.70, confidence), 4)
+                "confidence_score": round(max(0.70, confidence), 4),
+                "bounding_boxes": [{
+                    "box_2d": [0.15, 0.12, 0.85, 0.88],
+                    "label": disease["disease_name"],
+                    "confidence": round(max(0.70, confidence), 4),
+                    "disease_id": disease["disease_id"]
+                }]
             })
 
         return {"valid_predictions": valid_predictions, "ignored_images": []}

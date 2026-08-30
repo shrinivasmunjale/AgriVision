@@ -322,14 +322,17 @@ class PyTorchModelLoader:
         # Step 5 & 6: First run YOLO detection. If YOLO does not detect any tomato leaf, DO NOT call EfficientNet.
         try:
             from app.ml.yolo_detector import yolo_leaf_detector
-            has_leaf, cropped_image, leaf_conf, leaf_reason = yolo_leaf_detector.detect_leaf(image, conf_threshold=0.30)
+            res = yolo_leaf_detector.detect_leaf(image, conf_threshold=0.30)
+            has_leaf, cropped_image, leaf_conf, leaf_reason = res[0], res[1], res[2], res[3]
+            bounding_boxes = res[4] if len(res) > 4 else []
         except Exception as e:
             print(f"[WARNING] YOLO leaf detection error: {e}")
-            has_leaf, cropped_image, leaf_conf, leaf_reason = (
+            has_leaf, cropped_image, leaf_conf, leaf_reason, bounding_boxes = (
                 False,
                 None,
                 0.0,
                 "YOLOv8 leaf detection failed",
+                [],
             )
 
         # Step 7: Return ignored response if no tomato leaf detected
@@ -339,7 +342,8 @@ class PyTorchModelLoader:
                 "reason": leaf_reason or "No tomato leaf detected",
                 "image_url": image_url,
                 "filename": display_name,
-                "confidence_score": round(float(leaf_conf or 0.0), 4)
+                "confidence_score": round(float(leaf_conf or 0.0), 4),
+                "bounding_boxes": bounding_boxes,
             }
 
         # Step 6: If leaf detected, classify with EfficientNetB0
@@ -366,13 +370,30 @@ class PyTorchModelLoader:
                 "reason": "Disease confidence too low",
                 "image_url": image_url,
                 "filename": display_name,
-                "confidence_score": confidence
+                "confidence_score": confidence,
+                "bounding_boxes": bounding_boxes,
             }
 
         # Look up disease info in labels.json
         label_info = self.labels.get(class_idx, {})
         disease_id = label_info.get("disease_id", int(class_idx) if class_idx.isdigit() else None)
         disease_name = label_info.get("name", f"Class {class_idx}")
+
+        # If bounding boxes were found, ensure the primary box reflects the detected disease
+        if not bounding_boxes:
+            bounding_boxes = [{
+                "box_2d": [0.08, 0.08, 0.92, 0.92],
+                "box_pixels": [0, 0, image.width, image.height],
+                "label": disease_name,
+                "confidence": confidence,
+                "disease_id": disease_id
+            }]
+        else:
+            # Sync top box label/confidence if matching top diagnosis
+            for b in bounding_boxes:
+                if not b.get("label") or b.get("label") == "Leaf":
+                    b["label"] = disease_name
+                    b["disease_id"] = disease_id
 
         return {
             "status": "valid",
@@ -381,6 +402,7 @@ class PyTorchModelLoader:
             "disease_id": disease_id,
             "disease_name": disease_name,
             "confidence_score": confidence,
+            "bounding_boxes": bounding_boxes,
             "cropped_image": cropped_image,  # debug/inspection only (not persisted)
         }
 

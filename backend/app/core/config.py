@@ -3,9 +3,12 @@ from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field, field_validator
 
+BACKEND_DIR = Path(__file__).resolve().parents[2]
+ENV_PATH = BACKEND_DIR / ".env"
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=".env", 
+        env_file=str(ENV_PATH) if ENV_PATH.exists() else ".env", 
         env_file_encoding="utf-8", 
         extra="ignore"
     )
@@ -22,7 +25,7 @@ class Settings(BaseSettings):
     @field_validator("DATABASE_URL", mode="before")
     @classmethod
     def assemble_db_connection(cls, v: str) -> str:
-        if not v or not isinstance(v, str):
+        if not v or not isinstance(v, str) or v.startswith("prisma+"):
             # A local SQLite file is convenient while developing, but it is
             # ephemeral on hosted services such as Render/Railway.  Falling
             # back to it in production makes registration appear successful

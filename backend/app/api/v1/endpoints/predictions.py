@@ -117,6 +117,7 @@ async def analyze_images(
             image_url=ml_pred.get("image_url", ""),
             disease_id=ml_pred.get("disease_id"),
             confidence_score=ml_pred.get("confidence_score", 0.0),
+            bounding_boxes=ml_pred.get("bounding_boxes", []),
             crop_age_days=request.crop_age_days,
             life_stage=active_life_stage
         )
@@ -180,6 +181,7 @@ async def analyze_images(
             disease_id=prediction.disease_id,
             disease_name=disease_name or ml_pred.get("disease_name"),
             confidence_score=prediction.confidence_score,
+            bounding_boxes=prediction.bounding_boxes or ml_pred.get("bounding_boxes") or [],
             crop_age_days=prediction.crop_age_days,
             life_stage=prediction.life_stage,
             created_at=prediction.created_at,
@@ -323,6 +325,7 @@ async def get_predictions(
             disease_id=pred.disease_id,
             disease_name=disease_name,
             confidence_score=pred.confidence_score,
+            bounding_boxes=getattr(pred, "bounding_boxes", None) or [],
             crop_age_days=getattr(pred, "crop_age_days", None),
             life_stage=getattr(pred, "life_stage", None),
             created_at=pred.created_at,
@@ -441,6 +444,7 @@ async def get_prediction(
         disease_id=prediction.disease_id,
         disease_name=disease_name,
         confidence_score=prediction.confidence_score,
+        bounding_boxes=getattr(prediction, "bounding_boxes", None) or [],
         crop_age_days=getattr(prediction, "crop_age_days", None),
         life_stage=getattr(prediction, "life_stage", None),
         created_at=prediction.created_at,

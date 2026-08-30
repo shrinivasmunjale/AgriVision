@@ -13,12 +13,21 @@ class RecommendationItem(BaseModel):
     class Config:
         from_attributes = True
 
+class BoundingBox(BaseModel):
+    box_2d: List[float]  # [ymin, xmin, ymax, xmax] normalized (0.0 to 1.0)
+    label: str
+    confidence: float
+    disease_id: Optional[int] = None
+    box_pixels: Optional[List[float]] = None
+    class_id: Optional[int] = None
+
 class PredictionBase(BaseModel):
     image_url: str
     confidence_score: float
     disease_id: Optional[int] = None
     crop_age_days: Optional[int] = None
     life_stage: Optional[str] = None
+    bounding_boxes: Optional[List[Dict]] = []
 
 class PredictionCreate(PredictionBase):
     user_id: str
@@ -30,6 +39,7 @@ class PredictionResponse(BaseModel):
     disease_id: Optional[int] = None
     disease_name: Optional[str] = None
     confidence_score: float
+    bounding_boxes: Optional[List[Dict]] = []
     crop_age_days: Optional[int] = None
     life_stage: Optional[str] = None
     created_at: datetime

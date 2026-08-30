@@ -23,6 +23,8 @@ import {
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 
+import BoundingBoxImage from '@/components/BoundingBoxImage'
+
 export default function PredictionDetailPage() {
   const { user, loading, getAccessToken } = useAuth()
   const router = useRouter()
@@ -134,17 +136,16 @@ export default function PredictionDetailPage() {
             </div>
           </div>
 
-          {/* Image Display */}
-          <div className="bg-surface-card rounded-2xl overflow-hidden border border-border-subtle shadow-sm">
-            <img
-              src={prediction.image_url}
-              alt="Leaf scan"
-              className="w-full h-96 object-contain bg-surface-base"
-              onError={(e) => {
-                e.target.src = '/placeholder-leaf.png'
-              }}
-            />
-          </div>
+          {/* Image Display with Bounding Boxes */}
+          <BoundingBoxImage
+            src={prediction.image_url}
+            alt={prediction.disease_name || 'Leaf scan'}
+            boundingBoxes={prediction.bounding_boxes || []}
+            defaultDiseaseName={prediction.disease_name}
+            defaultConfidence={prediction.confidence_score}
+            heightClass="h-[420px]"
+            showControls={true}
+          />
 
           {/* Diagnostic Overview Card */}
           <div className="bg-surface-card rounded-2xl p-6 border border-border-subtle shadow-sm">
