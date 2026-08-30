@@ -16,6 +16,9 @@ import { motion, AnimatePresence } from 'framer-motion'
  * - className: string
  * - heightClass: string (e.g. 'h-96', 'h-64')
  * - showControls: boolean (default true)
+ * - showFallbackBox: boolean (default true) - when true and no boxes are
+ *   supplied, draw an illustrative focal box. Set to false to never draw
+ *   synthetic boxes (the backend now returns tight lesion boxes instead).
  */
 export default function BoundingBoxImage({
   src,
@@ -26,6 +29,7 @@ export default function BoundingBoxImage({
   className = '',
   heightClass = 'h-96',
   showControls = true,
+  showFallbackBox = true,
 }) {
   const [showBoxes, setShowBoxes] = useState(true)
   const [showBadges, setShowBadges] = useState(true)
@@ -66,16 +70,19 @@ export default function BoundingBoxImage({
       })
     : []
 
-  // If no boxes are provided but disease is detected, construct an illustrative focal box
-  const activeBoxes = normalizedBoxes.length > 0 ? normalizedBoxes : (defaultDiseaseName && !/healthy/i.test(defaultDiseaseName) ? [{
-    top: '12%',
-    left: '12%',
-    width: '76%',
-    height: '76%',
-    label: defaultDiseaseName,
-    confidence: defaultConfidence,
-    isHealthy: false,
-  }] : [])
+  // If no boxes are provided, optionally draw an illustrative focal box. The
+  // backend now returns real tight lesion boxes, so pages opt out of this.
+  const activeBoxes = normalizedBoxes.length > 0 || !showFallbackBox
+    ? normalizedBoxes
+    : (defaultDiseaseName && !/healthy/i.test(defaultDiseaseName) ? [{
+        top: '12%',
+        left: '12%',
+        width: '76%',
+        height: '76%',
+        label: defaultDiseaseName,
+        confidence: defaultConfidence,
+        isHealthy: false,
+      }] : [])
 
   const hasBoxes = activeBoxes.length > 0
 

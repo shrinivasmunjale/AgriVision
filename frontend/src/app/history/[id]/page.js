@@ -145,6 +145,7 @@ export default function PredictionDetailPage() {
             defaultConfidence={prediction.confidence_score}
             heightClass="h-[420px]"
             showControls={true}
+            showFallbackBox={false}
           />
 
           {/* Diagnostic Overview Card */}

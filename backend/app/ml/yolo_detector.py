@@ -95,7 +95,7 @@ class YOLOLeafDetector:
                 "label": "Leaf Region",
                 "confidence": 0.50,
                 "disease_id": None
-            }]
+            }], None
 
         try:
             # Run YOLO detection.
@@ -104,6 +104,7 @@ class YOLOLeafDetector:
             results = self.model(image, conf=internal_conf, verbose=False)
             
             all_boxes = []
+            infected_boxes = []  # Only diseased regions (non-healthy)
             width, height = image.size
 
             if results and len(results) > 0 and results[0].boxes is not None and len(results[0].boxes) > 0:
@@ -147,16 +148,28 @@ class YOLOLeafDetector:
                         norm_ymax = max(0.0, min(1.0, round(b_ymax / height, 4)))
                         norm_xmax = max(0.0, min(1.0, round(b_xmax / width, 4)))
 
-                        all_boxes.append({
+                        box_data = {
                             "box_2d": [norm_ymin, norm_xmin, norm_ymax, norm_xmax],
                             "box_pixels": [round(b_xmin, 1), round(b_ymin, 1), round(b_xmax, 1), round(b_ymax, 1)],
                             "label": clean_label,
                             "confidence": round(conf, 4),
                             "disease_id": d_id,
                             "class_id": cls_id
-                        })
+                        }
+                        
+                        all_boxes.append(box_data)
+                        
+                        # Only add to infected_boxes if NOT healthy and confidence >= 0.35
+                        if clean_label.lower() != "healthy" and d_id != 1 and conf >= 0.35:
+                            infected_boxes.append(box_data)
+                            print(f"[YOLO DEBUG] Added infected box: {clean_label} (conf={conf:.3f}, disease_id={d_id})")
+                        else:
+                            print(f"[YOLO DEBUG] Skipped box: {clean_label} (conf={conf:.3f}, disease_id={d_id}, healthy={clean_label.lower() == 'healthy'})")
+                            
                 except Exception as box_err:
                     print(f"[YOLOv8] Error extracting bounding boxes: {box_err}")
+                
+                print(f"[YOLO DEBUG] Total boxes detected: {len(all_boxes)}, Infected boxes: {len(infected_boxes)}")
 
                 # If candidate boxes exist, select best
                 try:
@@ -178,6 +191,18 @@ class YOLOLeafDetector:
                     pad_x = int(box_w * 0.15)
                     pad_y = int(box_h * 0.15)
 
+                    # Leaf ROI for the lesion localizer: the YOLO leaf box with a
+                    # small pad only (the 15% pad used for the classification crop
+                    # would spill into the background and recreate whole-frame boxes).
+                    roi_pad_x = max(4, int(box_w * 0.03))
+                    roi_pad_y = max(4, int(box_h * 0.03))
+                    leaf_roi = [
+                        max(0, xmin - roi_pad_x),
+                        max(0, ymin - roi_pad_y),
+                        min(width, xmax + roi_pad_x),
+                        min(height, ymax + roi_pad_y),
+                    ]
+
                     xmin = max(0, xmin - pad_x)
                     ymin = max(0, ymin - pad_y)
                     xmax = min(width, xmax + pad_x)
@@ -185,10 +210,19 @@ class YOLOLeafDetector:
 
                     if xmax > xmin and ymax > ymin:
                         cropped_image = image.crop((xmin, ymin, xmax, ymax))
-                        return True, cropped_image, best_conf, None, all_boxes
+                        # Return only infected boxes (non-healthy regions)
+                        boxes_to_return = infected_boxes if infected_boxes else all_boxes
+                        print(f"[YOLO DEBUG] Returning {len(boxes_to_return)} boxes to frontend (roi={leaf_roi})")
+                        return True, cropped_image, best_conf, None, boxes_to_return, leaf_roi
 
             # If no localized box or low YOLO confidence (e.g. direct full-frame leaf image),
             # fall back gracefully to the full image so EfficientNet can classify it.
+            # Return infected boxes if available, otherwise fallback box
+            if infected_boxes:
+                print(f"[YOLO DEBUG] No crop, but returning {len(infected_boxes)} infected boxes")
+                return True, image, 0.70, None, infected_boxes, None
+            
+            print(f"[YOLO DEBUG] No infected boxes found, returning fallback box")
             fallback_box = [{
                 "box_2d": [0.08, 0.08, 0.92, 0.92],
                 "box_pixels": [0, 0, width, height],
@@ -196,7 +230,7 @@ class YOLOLeafDetector:
                 "confidence": 0.70,
                 "disease_id": None
             }]
-            return True, image, 0.70, None, (all_boxes if all_boxes else fallback_box)
+            return True, image, 0.70, None, (all_boxes if all_boxes else fallback_box), None
 
         except Exception as e:
             print(f"[WARNING] Error during YOLO leaf detection: {e}.")
@@ -209,7 +243,7 @@ class YOLOLeafDetector:
                 "confidence": 0.70,
                 "disease_id": None
             }]
-            return True, image, 0.70, None, fallback_box
+            return True, image, 0.70, None, fallback_box, None
 
     def detect_and_crop(self, image: Image.Image, conf_threshold: float = 0.30) -> Image.Image:
         """Backward compatibility wrapper method."""

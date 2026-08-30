@@ -115,12 +115,7 @@ class MLInferenceService:
                 "disease_id": disease["disease_id"],
                 "disease_name": disease["disease_name"],
                 "confidence_score": round(max(0.70, confidence), 4),
-                "bounding_boxes": [{
-                    "box_2d": [0.15, 0.12, 0.85, 0.88],
-                    "label": disease["disease_name"],
-                    "confidence": round(max(0.70, confidence), 4),
-                    "disease_id": disease["disease_id"]
-                }]
+                "bounding_boxes": []
             })
 
         return {"valid_predictions": valid_predictions, "ignored_images": []}

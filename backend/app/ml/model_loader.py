@@ -325,14 +325,16 @@ class PyTorchModelLoader:
             res = yolo_leaf_detector.detect_leaf(image, conf_threshold=0.30)
             has_leaf, cropped_image, leaf_conf, leaf_reason = res[0], res[1], res[2], res[3]
             bounding_boxes = res[4] if len(res) > 4 else []
+            leaf_roi = res[5] if len(res) > 5 else None
         except Exception as e:
             print(f"[WARNING] YOLO leaf detection error: {e}")
-            has_leaf, cropped_image, leaf_conf, leaf_reason, bounding_boxes = (
+            has_leaf, cropped_image, leaf_conf, leaf_reason, bounding_boxes, leaf_roi = (
                 True,
                 image,
                 0.70,
                 None,
                 [],
+                None,
             )
 
         if not has_leaf or cropped_image is None:
@@ -371,21 +373,50 @@ class PyTorchModelLoader:
         disease_id = label_info.get("disease_id", int(class_idx) if class_idx.isdigit() else None)
         disease_name = label_info.get("name", f"Class {class_idx}")
 
-        # If bounding boxes were found, ensure the primary box reflects the detected disease
-        if not bounding_boxes:
-            bounding_boxes = [{
-                "box_2d": [0.08, 0.08, 0.92, 0.92],
-                "box_pixels": [0, 0, image.width, image.height],
-                "label": disease_name,
-                "confidence": confidence,
-                "disease_id": disease_id
-            }]
+        # Localize the ACTUAL infected spots and return tight boxes around only
+        # those regions (YOLO's own boxes frame the whole leaf, which makes the
+        # overlay cover the entire image).
+        is_healthy = bool(
+            disease_id == 1 or "healthy" in str(disease_name).lower()
+        )
+        if is_healthy:
+            # Healthy leaves get no red overlay boxes.
+            bounding_boxes = []
         else:
-            # Sync top box label/confidence if matching top diagnosis
-            for b in bounding_boxes:
-                if not b.get("label") or b.get("label") == "Leaf":
-                    b["label"] = disease_name
-                    b["disease_id"] = disease_id
+            try:
+                from app.ml.lesion_detector import localize_infected_regions
+
+                lesion_boxes = localize_infected_regions(
+                    image,
+                    roi=leaf_roi,
+                    label=disease_name,
+                    confidence=confidence,
+                    disease_id=disease_id,
+                )
+                if lesion_boxes:
+                    bounding_boxes = lesion_boxes
+                elif not isinstance(bounding_boxes, list) or not bounding_boxes:
+                    # No YOLO boxes either: try a full-frame lesion search once more.
+                    bounding_boxes = localize_infected_regions(
+                        image,
+                        roi=None,
+                        label=disease_name,
+                        confidence=confidence,
+                        disease_id=disease_id,
+                    )
+                else:
+                    # Lesion search found nothing but YOLO has boxes; keep them
+                    # but rebrand the primary box so it matches the diagnosis.
+                    for b in bounding_boxes:
+                        if not b.get("label") or str(b.get("label", "")).lower() in ("leaf", "leaf region"):
+                            b["label"] = disease_name
+                            b["disease_id"] = disease_id
+            except Exception as exc:
+                print(f"[WARNING] Lesion localization failed ({exc}); using YOLO boxes.")
+                for b in bounding_boxes:
+                    if not b.get("label") or str(b.get("label", "")).lower() in ("leaf", "leaf region"):
+                        b["label"] = disease_name
+                        b["disease_id"] = disease_id
 
         return {
             "status": "valid",

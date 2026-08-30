@@ -399,6 +399,7 @@ export default function ScanPage() {
                               defaultConfidence={pred.confidence_score}
                               heightClass="h-56"
                               showControls={true}
+                              showFallbackBox={false}
                             />
                           </div>
 

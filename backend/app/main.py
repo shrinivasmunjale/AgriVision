@@ -34,6 +34,14 @@ async def lifespan(app: FastAPI):
             await conn.execute(text(
                 "ALTER TABLE predictions ADD COLUMN IF NOT EXISTS life_stage VARCHAR(50)"
             ))
+            await conn.execute(text(
+                "ALTER TABLE predictions ADD COLUMN IF NOT EXISTS bounding_boxes JSONB"
+            ))
+        elif conn.dialect.name == "sqlite":
+            try:
+                await conn.execute(text("ALTER TABLE predictions ADD COLUMN bounding_boxes JSON"))
+            except Exception:
+                pass
 
     async with SessionLocal() as db:
         result = await db.execute(select(User))
