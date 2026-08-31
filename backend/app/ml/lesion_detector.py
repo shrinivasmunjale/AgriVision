@@ -44,12 +44,9 @@ from PIL import Image
 # Configuration
 # --------------------------------------------------------------------------- #
 MAX_ANALYSIS_DIM = 1400          # downscale larger images for speed
-MIN_SPOT_AREA_RATIO = 0.0008     # ignore smaller specks (relative to ROI area)
-MAX_BOXES = 8                    # cap on boxes returned to the frontend
-SMALL_BOX_AREA_FRAC = 0.30       # blobs bigger than 30% of the search area get split
-GRID_CELL_FRACTION = 0.035       # grid cells ~3.5% of the blob width/height
-CELL_MIN_DENSITY = 0.04          # a grid cell is "lesion" if >=4% covered
-FILL_SOLID_RATIO = 0.72          # blobs filled >=72% are kept whole (truly necrotic)
+MIN_SPOT_AREA_RATIO = 0.0006     # ignore smaller specks (relative to ROI area)
+MAX_BOX_AREA_FRAC = 0.60         # maximum fraction of image area a box may cover
+MAX_BOX_DIM_FRAC = 0.78          # maximum fraction of image width or height a box may span
 
 
 # --------------------------------------------------------------------------- #
@@ -177,34 +174,32 @@ def _clean_mask(mask):
     return mask
 
 
-def _contour_boxes(mask, work_area, scale, min_area_px, bgr, x0, y0, x1, y1):
-    """Bounding boxes (in original-image pixels) of the cleaned blobs.
-
-    Blobs that smear along the search-region border and are essentially gray
-    (background rim) are discarded so corner backgrounds don't become boxes.
-    """
+def _filter_valid_contours(mask, work_area, min_area_px, bgr, x0, y0, x1, y1):
+    """Find and return valid lesion contours, discarding noise and flat background rims."""
     cnts, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    if not cnts:
+        return []
 
     maxc = np.maximum(bgr[..., 0], np.maximum(bgr[..., 1], bgr[..., 2]))
     minc = np.minimum(bgr[..., 0], np.minimum(bgr[..., 1], bgr[..., 2]))
     sat = np.where(maxc > 0, (maxc - minc) / np.maximum(maxc, 1e-6), 0) * 255.0
     val = maxc
 
-    boxes = []
+    valid = []
     for c in cnts:
         area = float(cv2.contourArea(c))
         if area < min_area_px:
             continue
         x, y, bw, bh = cv2.boundingRect(c)
-        if bw * bh < min_area_px * 1.5:
+        if bw * bh < min_area_px * 1.2:
             continue
         # ignore razor-thin slivers
         if (bw > bh and bh < 2) or (bh > bw and bw < 2):
             continue
-        if bw * bh > 0.985 * work_area:
+        if bw * bh > 0.95 * work_area:
             continue
 
-        # background rim: blob touches the ROI border and is gray/flat
+        # background rim check: blob touches the ROI border and is flat/gray
         touches_border = (
             x <= x0 + 2 or y <= y0 + 2 or x + bw >= x1 - 2 or y + bh >= y1 - 2
         )
@@ -218,112 +213,145 @@ def _contour_boxes(mask, work_area, scale, min_area_px, bgr, x0, y0, x1, y1):
             sat_mean = float(np.mean(pix_s)) if len(pix_s) else 255.0
             val_mean = float(np.mean(pix_v)) if len(pix_v) else 0.0
             spread = float(np.mean(np.maximum(pix_r, np.maximum(pix_g, pix_b)) - np.minimum(pix_r, np.minimum(pix_g, pix_b)))) if len(pix_r) else 40.0
-            # Gray background rim: nearly achromatic, mid-brightness
             if sat_mean < 20 and val_mean > 35 and val_mean < 205 and spread < 25:
                 continue
 
-        boxes.append(
-            [x / scale, y / scale, (x + bw) / scale, (y + bh) / scale]
-        )
-    return boxes
+        valid.append((c, area, (x, y, bw, bh)))
+
+    # Sort largest area first
+    valid.sort(key=lambda item: item[1], reverse=True)
+    return valid
 
 
-def _split_blob(mask, box, grid_w, grid_h):
-    """Split a large blob into tighter sub-boxes via grid-density clustering."""
-    x0, y0, x1, y1 = [int(v) for v in box]
-    w = max(1, x1 - x0)
-    hgt = max(1, y1 - y0)
-    cols = max(2, min(40, w // max(1, grid_w)))
-    rows = max(2, min(40, hgt // max(1, grid_h)))
+def _compute_single_disease_box(valid_contours, mask, orig_w, orig_h, scale):
+    """
+    Compute exactly ONE tight bounding box enclosing the primary disease area.
+    
+    Verifies that the box focuses tightly on the disease and does NOT cover the entire image.
+    """
+    if not valid_contours:
+        return None
 
-    cell_w = w / float(cols)
-    cell_h = hgt / float(rows)
-    sub = mask[y0:y1, x0:x1]
+    total_valid = len(valid_contours)
+    largest_contour, largest_area, (lx, ly, lbw, lbh) = valid_contours[0]
 
-    # density map over the grid
-    density = np.zeros((rows, cols), np.float32)
-    for yy in range(rows):
-        cy0, cy1 = int(yy * cell_h), min(hgt, int((yy + 1) * cell_h))
-        for xx in range(cols):
-            cx0, cx1 = int(xx * cell_w), min(w, int((xx + 1) * cell_w))
-            cell = sub[cy0:cy1, cx0:cx1]
-            area = float((cy1 - cy0) * (cx1 - cx0))
-            if area <= 0:
-                continue
-            density[yy, xx] = float(np.count_nonzero(cell > 0)) / area
+    # Combine top significant contours (area >= 12% of largest or top 3)
+    # to form a cohesive disease area envelope
+    top_contours = [
+        item[0] for item in valid_contours
+        if item[1] >= max(10.0, largest_area * 0.12)
+    ][:4]
 
-    thr = max(CELL_MIN_DENSITY, 2.0 / max(1.0, cell_w * cell_h))
-    dense = (density > thr).astype(np.uint8)
-    if int(dense.sum()) == 0:
-        return [[x0, y0, x1, y1]]
+    all_pts = np.vstack(top_contours)
+    x, y, w, h = cv2.boundingRect(all_pts)
 
-    n, labels, _, _ = cv2.connectedComponentsWithStats(dense, connectivity=4)
-    out = []
-    for lbl in range(1, n):
-        ys, xs = np.nonzero(labels == lbl)
-        if len(xs) == 0:
-            continue
-        sx0 = x0 + int(xs.min() * cell_w)
-        sy0 = y0 + int(ys.min() * cell_h)
-        sx1 = x0 + int((xs.max() + 1) * cell_w)
-        sy1 = y0 + int((ys.max() + 1) * cell_h)
-        out.append([sx0, sy0, sx1, sy1])
-    return out or [[x0, y0, x1, y1]]
+    # Convert to original image pixel coordinates
+    ox0 = x / scale
+    oy0 = y / scale
+    ox1 = (x + w) / scale
+    oy1 = (y + h) / scale
+
+    # Add a modest padding around the disease cluster (6% of dimension)
+    pad_x = max(10.0, (ox1 - ox0) * 0.06)
+    pad_y = max(10.0, (oy1 - oy0) * 0.06)
+    ox0 = max(0.0, ox0 - pad_x)
+    oy0 = max(0.0, oy0 - pad_y)
+    ox1 = min(float(orig_w), ox1 + pad_x)
+    oy1 = min(float(orig_h), oy1 + pad_y)
+
+    cur_w = ox1 - ox0
+    cur_h = oy1 - oy0
+    area_fraction = (cur_w * cur_h) / max(1.0, float(orig_w * orig_h))
+
+    # Verification: Ensure the box does not cover the entire image!
+    # If the combined envelope spans too much of the picture (> 60% area or > 78% of any dimension),
+    # focus on the primary dominant disease lesion instead of framing the entire leaf.
+    if area_fraction > MAX_BOX_AREA_FRAC or cur_w > MAX_BOX_DIM_FRAC * orig_w or cur_h > MAX_BOX_DIM_FRAC * orig_h:
+        # Fall back to largest single lesion contour
+        lx0 = lx / scale
+        ly0 = ly / scale
+        lx1 = (lx + lbw) / scale
+        ly1 = (ly + lbh) / scale
+
+        l_pad_x = max(8.0, (lx1 - lx0) * 0.08)
+        l_pad_y = max(8.0, (ly1 - ly0) * 0.08)
+        ox0 = max(0.0, lx0 - l_pad_x)
+        oy0 = max(0.0, ly0 - l_pad_y)
+        ox1 = min(float(orig_w), lx1 + l_pad_x)
+        oy1 = min(float(orig_h), ly1 + l_pad_y)
+
+        cur_w = ox1 - ox0
+        cur_h = oy1 - oy0
+
+    # Hard safety clamp: Never allow a box to cover more than 72% of width/height or > 50% total area
+    max_w_allowed = orig_w * 0.72
+    max_h_allowed = orig_h * 0.72
+
+    if cur_w > max_w_allowed:
+        center_x = (ox0 + ox1) / 2.0
+        ox0 = max(0.0, center_x - max_w_allowed / 2.0)
+        ox1 = min(float(orig_w), center_x + max_w_allowed / 2.0)
+        cur_w = ox1 - ox0
+
+    if cur_h > max_h_allowed:
+        center_y = (oy0 + oy1) / 2.0
+        oy0 = max(0.0, center_y - max_h_allowed / 2.0)
+        oy1 = min(float(orig_h), center_y + max_h_allowed / 2.0)
+        cur_h = oy1 - oy0
+
+    cur_area_frac = (cur_w * cur_h) / max(1.0, float(orig_w * orig_h))
+    if cur_area_frac > MAX_BOX_AREA_FRAC:
+        scale_down = np.sqrt(MAX_BOX_AREA_FRAC / cur_area_frac)
+        center_x = (ox0 + ox1) / 2.0
+        center_y = (oy0 + oy1) / 2.0
+        new_w = cur_w * scale_down
+        new_h = cur_h * scale_down
+        ox0 = max(0.0, center_x - new_w / 2.0)
+        ox1 = min(float(orig_w), center_x + new_w / 2.0)
+        oy0 = max(0.0, center_y - new_h / 2.0)
+        oy1 = min(float(orig_h), center_y + new_h / 2.0)
+
+    # Ensure minimum visible box size (at least 20x20 pixels)
+    if (ox1 - ox0) < 20.0:
+        cx = (ox0 + ox1) / 2.0
+        ox0 = max(0.0, cx - 10.0)
+        ox1 = min(float(orig_w), cx + 10.0)
+
+    if (oy1 - oy0) < 20.0:
+        cy = (oy0 + oy1) / 2.0
+        oy0 = max(0.0, cy - 10.0)
+        oy1 = min(float(orig_h), cy + 10.0)
+
+    return [ox0, oy0, ox1, oy1]
 
 
-def _merge_boxes(boxes):
-    """Greedily merge boxes that overlap substantially."""
-    merged = []
-    for bx in boxes:
-        placed = False
-        for m in merged:
-            ix0 = max(bx[0], m[0])
-            iy0 = max(bx[1], m[1])
-            ix1 = min(bx[2], m[2])
-            iy1 = min(bx[3], m[3])
-            inter = max(0, ix1 - ix0) * max(0, iy1 - iy0)
-            a1 = (bx[2] - bx[0]) * (bx[3] - bx[1])
-            a2 = (m[2] - m[0]) * (m[3] - m[1])
-            if inter / max(1e-6, min(a1, a2)) > 0.65:
-                m[0] = min(m[0], bx[0])
-                m[1] = min(m[1], bx[1])
-                m[2] = max(m[2], bx[2])
-                m[3] = max(m[3], bx[3])
-                placed = True
-                break
-        if not placed:
-            merged.append(list(bx))
-    return merged
-
-
-def _to_box_schema(boxes, width, height, label, confidence, disease_id):
-    """Convert raw pixel boxes to the app's box schema in original-image coords."""
-    out = []
-    for bx in boxes:
-        x0 = max(0.0, min(float(width), float(bx[0])))
-        y0 = max(0.0, min(float(height), float(bx[1])))
-        x1 = max(x0, min(float(width), float(bx[2])))
-        y1 = max(y0, min(float(height), float(bx[3])))
-        out.append(
-            {
-                "box_2d": [
-                    round(y0 / height, 4),
-                    round(x0 / width, 4),
-                    round(y1 / height, 4),
-                    round(x1 / width, 4),
-                ],
-                "box_pixels": [
-                    round(x0, 1),
-                    round(y0, 1),
-                    round(x1, 1),
-                    round(y1, 1),
-                ],
-                "label": label,
-                "confidence": round(confidence, 4),
-                "disease_id": disease_id,
-            }
-        )
-    return out
+def _to_box_schema(box, width, height, label, confidence, disease_id):
+    """Convert raw pixel box to standard schema in original-image coords."""
+    if not box:
+        return []
+    x0 = max(0.0, min(float(width), float(box[0])))
+    y0 = max(0.0, min(float(height), float(box[1])))
+    x1 = max(x0, min(float(width), float(box[2])))
+    y1 = max(y0, min(float(height), float(box[3])))
+    return [
+        {
+            "box_2d": [
+                round(y0 / height, 4),
+                round(x0 / width, 4),
+                round(y1 / height, 4),
+                round(x1 / width, 4),
+            ],
+            "box_pixels": [
+                round(x0, 1),
+                round(y0, 1),
+                round(x1, 1),
+                round(y1, 1),
+            ],
+            "label": label,
+            "confidence": round(confidence, 4),
+            "disease_id": disease_id,
+        }
+    ]
 
 
 # --------------------------------------------------------------------------- #
@@ -337,26 +365,34 @@ def localize_infected_regions(
     disease_id: Optional[int] = None,
 ) -> List[Dict]:
     """
-    Find tight boxes around the actual infected spots in ``image``.
+    Find exactly ONE tight bounding box around the actual infected disease area in ``image``.
+    Guarantees that the bounding box does not cover the entire image.
 
     Args:
         image: RGB PIL image (original, full frame).
         roi:   Optional leaf region ``[xmin, ymin, xmax, ymax]`` in original
                image pixel coordinates. When given, the search is restricted to
-               this region (recommended - pass the YOLO leaf box).
-        label / confidence / disease_id: metadata attached to each returned box.
+               this region.
+        label / confidence / disease_id: metadata attached to the returned box.
 
     Returns:
-        List of box dicts (see module docstring). Empty list when no lesions
-        can be localized.
+        List containing at most ONE box dict:
+        [
+            {
+                "box_2d": [ymin, xmin, ymax, xmax],  # normalized 0..1
+                "box_pixels": [xmin, ymin, xmax, ymax],
+                "label": str,
+                "confidence": float,
+                "disease_id": int | None
+            }
+        ]
+        Empty list when no lesions can be localized.
     """
     try:
         width, height = image.size
         bgr, scale = _prepare_frame(image)
         h, w = bgr.shape[:2]
 
-        # search region = ROI (or full frame); ROI is in original-image px so
-        # scale it into the (possibly downscaled) work space first.
         scaled_roi = [v * scale for v in roi] if roi else None
         x0, y0, x1, y1 = _map_roi(scaled_roi, 0, 0, w, h)
         work_area = max(1, (x1 - x0) * (y1 - y0))
@@ -365,76 +401,17 @@ def localize_infected_regions(
         mask = _build_lesion_mask(bgr, ref_r, ref_g, ref_b, x0, y0, x1, y1)
         mask = _clean_mask(mask)
 
-        min_area_px = max(16.0, MIN_SPOT_AREA_RATIO * work_area)
-        boxes = _contour_boxes(mask, work_area, scale, min_area_px, bgr, x0, y0, x1, y1)
+        min_area_px = max(12.0, MIN_SPOT_AREA_RATIO * work_area)
+        valid_contours = _filter_valid_contours(mask, work_area, min_area_px, bgr, x0, y0, x1, y1)
 
-        # Iteratively split blobs that still cover too much of the search area.
-        # A blob is only kept whole when it is (nearly) solid necrotic tissue.
-        cells = list(boxes)
-        max_whole_area = SMALL_BOX_AREA_FRAC * work_area * (scale * scale)
-        for _ in range(6):
-            best_fill = 1.0
-            for bx in cells:
-                x0i = int(round(bx[0] * scale))
-                y0i = int(round(bx[1] * scale))
-                x1i = int(round(bx[2] * scale))
-                y1i = int(round(bx[3] * scale))
-                area = (x1i - x0i) * (y1i - y0i)
-                blob = mask[y0i:y1i, x0i:x1i]
-                fill = float(np.count_nonzero(blob > 0)) / max(1.0, area)
-                best_fill = min(best_fill, fill)
-            if best_fill >= FILL_SOLID_RATIO:
-                break
-            split_boxes = []
-            changed = False
-            for bx in cells:
-                x0i = int(round(bx[0] * scale))
-                y0i = int(round(bx[1] * scale))
-                x1i = int(round(bx[2] * scale))
-                y1i = int(round(bx[3] * scale))
-                area = (x1i - x0i) * (y1i - y0i)
-                blob = mask[y0i:y1i, x0i:x1i]
-                fill = float(np.count_nonzero(blob > 0)) / max(1.0, area)
-                if area <= max_whole_area or fill >= FILL_SOLID_RATIO:
-                    split_boxes.append(bx)
-                    continue
-                cell = max(8, int(GRID_CELL_FRACTION * (x1i - x0i)))
-                cell_h = max(8, int(GRID_CELL_FRACTION * (y1i - y0i)))
-                parts = _split_blob(mask, [x0i, y0i, x1i, y1i], cell, cell_h)
-                if len(parts) == 1:
-                    # split produced nothing smaller - keep original
-                    split_boxes.append(bx)
-                else:
-                    changed = True
-                    split_boxes.extend(parts)
-            if not changed:
-                break
-            cells = split_boxes
-
-        boxes = _merge_boxes(cells)
-
-        # work-space coords -> original-image pixel coords
-        pixel_boxes = [
-            [bx[0] / scale, bx[1] / scale, bx[2] / scale, bx[3] / scale]
-            for bx in boxes
-        ]
-        pixel_boxes = _merge_boxes(pixel_boxes)
-
-        # sort biggest first, cap total
-        pixel_boxes.sort(key=lambda b: (b[2] - b[0]) * (b[3] - b[1]), reverse=True)
-        pixel_boxes = pixel_boxes[:MAX_BOXES]
-
-        if not pixel_boxes:
+        single_box = _compute_single_disease_box(valid_contours, mask, width, height, scale)
+        if not single_box:
             return []
 
-        max_frac = (
-            pixel_boxes[0][2] - pixel_boxes[0][0]
-        ) * (pixel_boxes[0][3] - pixel_boxes[0][1]) / max(1, width * height)
-        print(
-            f"[LESION] Found {len(pixel_boxes)} infected region(s) "
-            f"(max box covers {max_frac:.2f} of frame)"
-        )
-        return _to_box_schema(pixel_boxes, width, height, label, confidence, disease_id)
+        cov_frac = ((single_box[2] - single_box[0]) * (single_box[3] - single_box[1])) / max(1.0, float(width * height))
+        print(f"[LESION] Computed 1 focused disease box (covers {cov_frac:.1%} of frame)")
+
+        return _to_box_schema(single_box, width, height, label, confidence, disease_id)
     except Exception as exc:  # pragma: no cover - never block inference
         print(f"[WARNING] Lesion localizer failed: {exc}")
         return []

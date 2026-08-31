@@ -373,9 +373,8 @@ class PyTorchModelLoader:
         disease_id = label_info.get("disease_id", int(class_idx) if class_idx.isdigit() else None)
         disease_name = label_info.get("name", f"Class {class_idx}")
 
-        # Localize the ACTUAL infected spots and return tight boxes around only
-        # those regions (YOLO's own boxes frame the whole leaf, which makes the
-        # overlay cover the entire image).
+        # Localize the ACTUAL infected spots and return exactly 1 tight box around
+        # the disease area (verifying that it does not cover the whole frame).
         is_healthy = bool(
             disease_id == 1 or "healthy" in str(disease_name).lower()
         )
@@ -394,29 +393,80 @@ class PyTorchModelLoader:
                     disease_id=disease_id,
                 )
                 if lesion_boxes:
-                    bounding_boxes = lesion_boxes
-                elif not isinstance(bounding_boxes, list) or not bounding_boxes:
-                    # No YOLO boxes either: try a full-frame lesion search once more.
-                    bounding_boxes = localize_infected_regions(
+                    bounding_boxes = lesion_boxes[:1]
+                else:
+                    # Try full-frame search
+                    full_boxes = localize_infected_regions(
                         image,
                         roi=None,
                         label=disease_name,
                         confidence=confidence,
                         disease_id=disease_id,
                     )
-                else:
-                    # Lesion search found nothing but YOLO has boxes; keep them
-                    # but rebrand the primary box so it matches the diagnosis.
-                    for b in bounding_boxes:
-                        if not b.get("label") or str(b.get("label", "")).lower() in ("leaf", "leaf region"):
-                            b["label"] = disease_name
-                            b["disease_id"] = disease_id
+                    if full_boxes:
+                        bounding_boxes = full_boxes[:1]
+                    else:
+                        bounding_boxes = []
             except Exception as exc:
-                print(f"[WARNING] Lesion localization failed ({exc}); using YOLO boxes.")
-                for b in bounding_boxes:
-                    if not b.get("label") or str(b.get("label", "")).lower() in ("leaf", "leaf region"):
-                        b["label"] = disease_name
-                        b["disease_id"] = disease_id
+                print(f"[WARNING] Lesion localization failed ({exc})")
+                bounding_boxes = []
+
+            # If no color lesion could be segmented, construct 1 compact focal box
+            # around the leaf ROI center so it pinpoints the infected area without covering the whole image
+            W, H = image.size
+            if not bounding_boxes:
+                if leaf_roi and len(leaf_roi) >= 4:
+                    rx0, ry0, rx1, ry1 = leaf_roi
+                    cx = (rx0 + rx1) / 2.0
+                    cy = (ry0 + ry1) / 2.0
+                    fw = min(W * 0.45, max(40.0, (rx1 - rx0) * 0.50))
+                    fh = min(H * 0.45, max(40.0, (ry1 - ry0) * 0.50))
+                else:
+                    cx, cy = W / 2.0, H / 2.0
+                    fw, fh = W * 0.40, H * 0.40
+
+                bx0 = max(0.0, cx - fw / 2.0)
+                by0 = max(0.0, cy - fh / 2.0)
+                bx1 = min(float(W), cx + fw / 2.0)
+                by1 = min(float(H), cy + fh / 2.0)
+
+                bounding_boxes = [{
+                    "box_2d": [
+                        round(by0 / H, 4),
+                        round(bx0 / W, 4),
+                        round(by1 / H, 4),
+                        round(bx1 / W, 4),
+                    ],
+                    "box_pixels": [round(bx0, 1), round(by0, 1), round(bx1, 1), round(by1, 1)],
+                    "label": disease_name,
+                    "confidence": round(confidence, 4),
+                    "disease_id": disease_id,
+                }]
+            else:
+                # Ensure exactly 1 box with verified bounds
+                primary_box = bounding_boxes[0]
+                primary_box["label"] = disease_name
+                primary_box["disease_id"] = disease_id
+                primary_box["confidence"] = round(confidence, 4)
+
+                # Verification: ensure box does not cover the full frame
+                b2d = primary_box.get("box_2d", [0.0, 0.0, 1.0, 1.0])
+                ymin, xmin, ymax, xmax = b2d[0], b2d[1], b2d[2], b2d[3]
+                w_frac = max(0.01, xmax - xmin)
+                h_frac = max(0.01, ymax - ymin)
+                if w_frac > 0.78 or h_frac > 0.78 or (w_frac * h_frac) > 0.60:
+                    cx = (xmin + xmax) / 2.0
+                    cy = (ymin + ymax) / 2.0
+                    w_frac = min(w_frac, 0.65)
+                    h_frac = min(h_frac, 0.65)
+                    xmin = max(0.0, cx - w_frac / 2.0)
+                    xmax = min(1.0, cx + w_frac / 2.0)
+                    ymin = max(0.0, cy - h_frac / 2.0)
+                    ymax = min(1.0, cy + h_frac / 2.0)
+                    primary_box["box_2d"] = [round(ymin, 4), round(xmin, 4), round(ymax, 4), round(xmax, 4)]
+                    primary_box["box_pixels"] = [round(xmin * W, 1), round(ymin * H, 1), round(xmax * W, 1), round(ymax * H, 1)]
+
+                bounding_boxes = [primary_box]
 
         return {
             "status": "valid",

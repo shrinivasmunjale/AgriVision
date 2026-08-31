@@ -224,8 +224,8 @@ class YOLOLeafDetector:
             
             print(f"[YOLO DEBUG] No infected boxes found, returning fallback box")
             fallback_box = [{
-                "box_2d": [0.08, 0.08, 0.92, 0.92],
-                "box_pixels": [0, 0, width, height],
+                "box_2d": [0.20, 0.20, 0.80, 0.80],
+                "box_pixels": [round(width * 0.20, 1), round(height * 0.20, 1), round(width * 0.80, 1), round(height * 0.80, 1)],
                 "label": "Leaf",
                 "confidence": 0.70,
                 "disease_id": None
@@ -237,8 +237,8 @@ class YOLOLeafDetector:
             # Fallback to full image so inference is not blocked
             width, height = image.size
             fallback_box = [{
-                "box_2d": [0.08, 0.08, 0.92, 0.92],
-                "box_pixels": [0, 0, width, height],
+                "box_2d": [0.20, 0.20, 0.80, 0.80],
+                "box_pixels": [round(width * 0.20, 1), round(height * 0.20, 1), round(width * 0.80, 1), round(height * 0.80, 1)],
                 "label": "Leaf",
                 "confidence": 0.70,
                 "disease_id": None

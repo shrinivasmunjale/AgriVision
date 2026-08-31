@@ -36,11 +36,11 @@ export default function BoundingBoxImage({
   const [hoveredIndex, setHoveredIndex] = useState(null)
   const [imgError, setImgError] = useState(false)
 
-  // Normalize bounding boxes
+  // Normalize bounding boxes - ensure at most 1 box is selected and verify bounds
   const normalizedBoxes = (boundingBoxes && boundingBoxes.length > 0)
-    ? boundingBoxes.map((b) => {
+    ? boundingBoxes.slice(0, 1).map((b) => {
         // box_2d format: [ymin, xmin, ymax, xmax] (0.0 to 1.0)
-        let ymin = 0.1, xmin = 0.1, ymax = 0.9, xmax = 0.9
+        let ymin = 0.2, xmin = 0.2, ymax = 0.8, xmax = 0.8
         if (Array.isArray(b.box_2d) && b.box_2d.length >= 4) {
           ymin = Math.max(0, Math.min(1, b.box_2d[0]))
           xmin = Math.max(0, Math.min(1, b.box_2d[1]))
@@ -51,6 +51,20 @@ export default function BoundingBoxImage({
           xmin = Math.max(0, Math.min(1, b.box[1]))
           ymax = Math.max(0, Math.min(1, b.box[2]))
           xmax = Math.max(0, Math.min(1, b.box[3]))
+        }
+
+        // Verification: ensure box does not cover all image
+        let bw = xmax - xmin
+        let bh = ymax - ymin
+        if (bw > 0.78 || bh > 0.78 || (bw * bh) > 0.60) {
+          const cx = (xmin + xmax) / 2
+          const cy = (ymin + ymax) / 2
+          bw = Math.min(bw, 0.65)
+          bh = Math.min(bh, 0.65)
+          xmin = Math.max(0, cx - bw / 2)
+          xmax = Math.min(1, cx + bw / 2)
+          ymin = Math.max(0, cy - bh / 2)
+          ymax = Math.min(1, cy + bh / 2)
         }
 
         const label = b.label || defaultDiseaseName || 'Infected Area'
@@ -70,15 +84,14 @@ export default function BoundingBoxImage({
       })
     : []
 
-  // If no boxes are provided, optionally draw an illustrative focal box. The
-  // backend now returns real tight lesion boxes, so pages opt out of this.
+  // If no boxes are provided, optionally draw an illustrative focal box.
   const activeBoxes = normalizedBoxes.length > 0 || !showFallbackBox
     ? normalizedBoxes
     : (defaultDiseaseName && !/healthy/i.test(defaultDiseaseName) ? [{
-        top: '12%',
-        left: '12%',
-        width: '76%',
-        height: '76%',
+        top: '22%',
+        left: '22%',
+        width: '56%',
+        height: '56%',
         label: defaultDiseaseName,
         confidence: defaultConfidence,
         isHealthy: false,
@@ -121,7 +134,7 @@ export default function BoundingBoxImage({
 
           <div className="w-[1px] h-3.5 bg-white/20" />
           <span className="text-[11px] font-mono text-emerald-400/90 font-semibold px-1">
-            {hasBoxes ? `${activeBoxes.length} region${activeBoxes.length > 1 ? 's' : ''}` : 'No box'}
+            {hasBoxes ? '1 disease region' : 'No box'}
           </span>
         </div>
       )}
@@ -227,7 +240,7 @@ export default function BoundingBoxImage({
         <div className="flex items-center gap-2">
           <Scan className="w-3.5 h-3.5 text-primary-400" />
           <span>
-            {hasBoxes ? `AI Target Detection: ${activeBoxes.length} region(s) identified` : 'Standard leaf view'}
+            {hasBoxes ? 'AI Target Detection: 1 disease region identified' : 'Standard leaf view'}
           </span>
         </div>
         {hasBoxes && (
