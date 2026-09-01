@@ -30,7 +30,12 @@ async def get_weather(lat: float = 0.0, lon: float = 0.0):
             resp.raise_for_status()
             return resp.json()
     except (httpx.HTTPError, ValueError) as e:
-        raise HTTPException(status_code=502, detail=f"Weather service unavailable: {e}")
+        # Keep the dashboard usable when the external weather provider is
+        # unreachable (for example, during offline local development).
+        return {
+            "available": False,
+            "detail": "Weather service is currently unavailable.",
+        }
 
 
 # ---------------- Contact ----------------

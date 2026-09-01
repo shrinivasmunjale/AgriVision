@@ -25,7 +25,13 @@ export default function WeatherWidget() {
     setError('')
     miscAPI
       .weather(lat, lon)
-      .then((res) => setWeather(res.data))
+      .then((res) => {
+        if (res.data?.available === false) {
+          setError(res.data.detail || 'Weather unavailable')
+          return
+        }
+        setWeather(res.data)
+      })
       .catch(() => setError('Weather unavailable'))
       .finally(() => setLoading(false))
   }
