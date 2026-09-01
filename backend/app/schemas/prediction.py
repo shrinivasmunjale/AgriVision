@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Union
 from datetime import datetime
 
 class RecommendationItem(BaseModel):
@@ -8,6 +8,10 @@ class RecommendationItem(BaseModel):
     pesticide_name: Optional[str] = None
     fertilizer_id: Optional[int] = None
     fertilizer_name: Optional[str] = None
+    active_ingredient: Optional[str] = None
+    dosage: Optional[str] = None
+    application_method: Optional[str] = None
+    suitable_life_stages: Optional[Union[str, List[str]]] = None
     similarity_score: float
 
     class Config:

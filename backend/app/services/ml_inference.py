@@ -7,7 +7,7 @@ import random
 class MLInferenceService:
     def __init__(self):
         self.modal_url = settings.MODAL_API_URL
-        self.confidence_threshold = 0.70
+        self.confidence_threshold = 0.50
     
     async def predict_disease(self, image_urls: List[str], filenames: Optional[List[str]] = None) -> Dict:
         """

@@ -230,9 +230,10 @@ class PDFReportGenerator:
                 for idx, fert in enumerate(fertilizers, 1):
                     fert_text = f"""
                     {idx}. <b>{fert['fertilizer_name']}</b><br/>
-                    Composition: {fert.get('composition', 'N/A')}<br/>
+                    Active Ingredient: {fert.get('active_ingredient', 'N/A')}<br/>
                     Dosage: {fert.get('dosage', 'N/A')}<br/>
-                    Application Stage: {fert.get('application_stage', 'N/A')}<br/>
+                    Application Method: {fert.get('application_method', 'N/A')}<br/>
+                    Suitable Life Stages: {fert.get('suitable_life_stages', 'N/A')}<br/>
                     Match Score: {fert.get('similarity_score', 0.0):.2f}
                     """
                     story.append(Paragraph(fert_text, self.styles['Normal']))

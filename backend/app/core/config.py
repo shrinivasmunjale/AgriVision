@@ -78,7 +78,7 @@ class Settings(BaseSettings):
 
     # Modal ML Inference Serverless Endpoint (optional - uses local model)
     MODAL_API_URL: str = ""
-    CONFIDENCE_THRESHOLD: float = 0.60
+    CONFIDENCE_THRESHOLD: float = 0.50
 
     # AI Assistant / Chatbot (optional)
     AI_PROVIDER: str = "openai"

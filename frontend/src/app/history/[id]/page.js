@@ -17,8 +17,7 @@ import {
   CheckCircle2, 
   Info,
   Pill,
-  Sparkles,
-  BookOpen
+  Sparkles
 } from 'lucide-react'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
@@ -100,6 +99,14 @@ export default function PredictionDetailPage() {
   const isHealthy = prediction.disease_name === 'Healthy' || prediction.disease_name === 'Tomato Healthy'
   const lowConfidence = prediction.confidence_score < 0.6
   const details = prediction.disease_details
+  const pesticideRecommendations = (prediction.recommendations || []).filter((item) => item.pesticide_name)
+  const fertilizerRecommendations = (prediction.recommendations || []).filter((item) => item.fertilizer_name)
+
+  const formatLifeStages = (value) => {
+    if (!value) return null
+    if (Array.isArray(value)) return value.join(', ')
+    return String(value).replace(/[\[\]"]/g, '').split(',').map((stage) => stage.trim()).filter(Boolean).join(', ')
+  }
 
   return (
     <Layout>
@@ -399,60 +406,55 @@ export default function PredictionDetailPage() {
             </div>
           )}
 
-          {/* Standard Treatment Recommendations Fallback (only when structured knowledge cards are unavailable) */}
-          {!isHealthy && (!details?.recommended_pesticides || details.recommended_pesticides.length === 0) && prediction.recommendations && prediction.recommendations.length > 0 && (
+          {/* Nutrient recommendations from the disease treatment plan */}
+          {details?.recommended_fertilizers && details.recommended_fertilizers.length > 0 && (
             <div className="bg-surface-card rounded-2xl p-6 border border-border-subtle shadow-sm">
-              <div className="flex items-center gap-2 mb-4 text-primary-400 font-bold text-xl">
-                <BookOpen className="w-6 h-6" />
-                <h2>Similarity Matched Inputs & Fertilizers</h2>
+              <div className="flex items-center gap-2 mb-4 text-emerald-400 font-bold text-xl">
+                <Leaf className="w-6 h-6" />
+                <h2>Recommended Fertilizers & Recovery Nutrition</h2>
               </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {details.recommended_fertilizers.map((fertilizer, idx) => (
+                  <div key={idx} className="p-5 bg-surface-base border border-border-subtle rounded-xl space-y-3">
+                    <h3 className="text-lg font-semibold text-text-primary">{fertilizer.name}</h3>
+                    {fertilizer.purpose && <p className="text-sm text-text-secondary">{fertilizer.purpose}</p>}
+                    <div className="grid grid-cols-1 gap-3 text-sm border-t border-border-subtle/50 pt-3">
+                      {fertilizer.dosage && <div><strong className="text-text-secondary block text-xs">Recommended Dosage</strong><span className="text-text-primary font-medium">{fertilizer.dosage}</span></div>}
+                      {fertilizer.application_method && <div><strong className="text-text-secondary block text-xs">Application Method</strong><span className="text-text-primary font-medium">{fertilizer.application_method}</span></div>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
-              {prediction.recommendations.filter((r) => r.pesticide_name).length > 0 && (
+          {/* Saved input recommendations: the same source used by the PDF report. */}
+          {!isHealthy && (pesticideRecommendations.length > 0 || fertilizerRecommendations.length > 0) && (
+            <div className="bg-surface-card rounded-2xl p-6 border border-border-subtle shadow-sm">
+              <div className="flex items-center gap-2 mb-2 text-primary-400 font-bold text-xl">
+                <Pill className="w-6 h-6" />
+                <h2>Selected Recommendations</h2>
+              </div>
+              <p className="text-sm text-text-secondary mb-5">Product details, dosage, and application guidance for this scan.</p>
+
+              {pesticideRecommendations.length > 0 && (
                 <div className="mb-6">
-                  <h3 className="text-base font-semibold text-text-primary mb-3">
-                    Pesticide Similarity Index
-                  </h3>
-                  <div className="space-y-3">
-                    {prediction.recommendations
-                      .filter((r) => r.pesticide_name)
-                      .map((rec) => (
-                        <div
-                          key={rec.id}
-                          className="p-4 bg-surface-base rounded-xl border border-border-subtle flex items-center justify-between"
-                        >
-                          <h4 className="font-semibold text-text-primary text-sm">
-                            {rec.pesticide_name}
-                          </h4>
-                          <span className="px-3 py-1 bg-surface-card rounded-full text-xs font-semibold text-primary-400 border border-border-subtle">
-                            Match: {(rec.similarity_score * 100).toFixed(0)}%
-                          </span>
-                        </div>
-                      ))}
+                  <h3 className="text-base font-semibold text-text-primary mb-3">Pesticides</h3>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    {pesticideRecommendations.map((rec) => (
+                      <RecommendationCard key={rec.id} recommendation={rec} name={rec.pesticide_name} label="Pesticide" formatLifeStages={formatLifeStages} />
+                    ))}
                   </div>
                 </div>
               )}
 
-              {prediction.recommendations.filter((r) => r.fertilizer_name).length > 0 && (
+              {fertilizerRecommendations.length > 0 && (
                 <div>
-                  <h3 className="text-base font-semibold text-text-primary mb-3">
-                    Fertilizer Recovery Boost
-                  </h3>
-                  <div className="space-y-3">
-                    {prediction.recommendations
-                      .filter((r) => r.fertilizer_name)
-                      .map((rec) => (
-                        <div
-                          key={rec.id}
-                          className="p-4 bg-surface-base rounded-xl border border-border-subtle flex items-center justify-between"
-                        >
-                          <h4 className="font-semibold text-text-primary text-sm">
-                            {rec.fertilizer_name}
-                          </h4>
-                          <span className="px-3 py-1 bg-surface-card rounded-full text-xs font-semibold text-primary-400 border border-border-subtle">
-                            Match: {(rec.similarity_score * 100).toFixed(0)}%
-                          </span>
-                        </div>
-                      ))}
+                  <h3 className="text-base font-semibold text-text-primary mb-3">Fertilizers</h3>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    {fertilizerRecommendations.map((rec) => (
+                      <RecommendationCard key={rec.id} recommendation={rec} name={rec.fertilizer_name} label="Fertilizer" formatLifeStages={formatLifeStages} />
+                    ))}
                   </div>
                 </div>
               )}
@@ -461,5 +463,36 @@ export default function PredictionDetailPage() {
         </motion.div>
       </div>
     </Layout>
+  )
+}
+
+function RecommendationCard({ recommendation, name, label, formatLifeStages }) {
+  const fields = [
+    ['Active Ingredient', recommendation.active_ingredient],
+    ['Recommended Dosage', recommendation.dosage],
+    ['Application Method', recommendation.application_method],
+    ['Suitable Life Stages', formatLifeStages(recommendation.suitable_life_stages)],
+  ].filter(([, value]) => value)
+
+  return (
+    <article className="p-5 bg-surface-base border border-border-subtle rounded-xl">
+      <div className="flex items-start justify-between gap-3 border-b border-border-subtle/50 pb-3 mb-4">
+        <div>
+          <span className="text-xs font-semibold uppercase tracking-wider text-text-secondary">{label}</span>
+          <h4 className="text-lg font-semibold text-text-primary mt-1">{name}</h4>
+        </div>
+        <span className="shrink-0 px-3 py-1 bg-primary/10 text-primary-400 rounded-full text-xs font-semibold border border-primary/20">
+          Match {Math.round((recommendation.similarity_score || 0) * 100)}%
+        </span>
+      </div>
+      <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-5 gap-y-4 text-sm">
+        {fields.map(([field, value]) => (
+          <div key={field}>
+            <dt className="text-xs text-text-secondary mb-1">{field}</dt>
+            <dd className="text-text-primary font-medium">{value}</dd>
+          </div>
+        ))}
+      </dl>
+    </article>
   )
 }

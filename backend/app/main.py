@@ -1,9 +1,11 @@
+import logging
 from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import select, text
 
@@ -15,6 +17,8 @@ from app.db.session import engine, SessionLocal
 from app.models.user import User
 
 import seed
+
+logger = logging.getLogger("uvicorn.error")
 
 
 @asynccontextmanager
@@ -28,6 +32,7 @@ async def lifespan(app: FastAPI):
         # upgrade here so a Render restart can serve scans before Alembic is
         # run as part of the deployment command.
         if conn.dialect.name == "postgresql":
+            # Predictions
             await conn.execute(text(
                 "ALTER TABLE predictions ADD COLUMN IF NOT EXISTS crop_age_days INTEGER"
             ))
@@ -37,11 +42,53 @@ async def lifespan(app: FastAPI):
             await conn.execute(text(
                 "ALTER TABLE predictions ADD COLUMN IF NOT EXISTS bounding_boxes JSONB"
             ))
+            # Pesticides
+            await conn.execute(text(
+                "ALTER TABLE pesticides ADD COLUMN IF NOT EXISTS active_ingredient VARCHAR(255) DEFAULT ''"
+            ))
+            await conn.execute(text(
+                "ALTER TABLE pesticides ADD COLUMN IF NOT EXISTS dosage VARCHAR(255) DEFAULT ''"
+            ))
+            await conn.execute(text(
+                "ALTER TABLE pesticides ADD COLUMN IF NOT EXISTS application_method VARCHAR(512) DEFAULT ''"
+            ))
+            await conn.execute(text(
+                "ALTER TABLE pesticides ADD COLUMN IF NOT EXISTS suitable_life_stages TEXT DEFAULT '[]'"
+            ))
+            # Fertilizers
+            await conn.execute(text(
+                "ALTER TABLE fertilizers ADD COLUMN IF NOT EXISTS active_ingredient VARCHAR(255) DEFAULT ''"
+            ))
+            await conn.execute(text(
+                "ALTER TABLE fertilizers ADD COLUMN IF NOT EXISTS dosage VARCHAR(255) DEFAULT ''"
+            ))
+            await conn.execute(text(
+                "ALTER TABLE fertilizers ADD COLUMN IF NOT EXISTS application_method VARCHAR(512) DEFAULT ''"
+            ))
+            await conn.execute(text(
+                "ALTER TABLE fertilizers ADD COLUMN IF NOT EXISTS suitable_life_stages TEXT DEFAULT '[]'"
+            ))
+            # Users
+            await conn.execute(text(
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS hashed_password VARCHAR(255)"
+            ))
+            await conn.execute(text(
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
+            ))
         elif conn.dialect.name == "sqlite":
-            try:
-                await conn.execute(text("ALTER TABLE predictions ADD COLUMN bounding_boxes JSON"))
-            except Exception:
-                pass
+            for stmt in [
+                "ALTER TABLE predictions ADD COLUMN bounding_boxes JSON",
+                "ALTER TABLE predictions ADD COLUMN crop_age_days INTEGER",
+                "ALTER TABLE predictions ADD COLUMN life_stage VARCHAR(50)",
+                "ALTER TABLE pesticides ADD COLUMN suitable_life_stages TEXT DEFAULT '[]'",
+                "ALTER TABLE fertilizers ADD COLUMN suitable_life_stages TEXT DEFAULT '[]'",
+                "ALTER TABLE users ADD COLUMN hashed_password VARCHAR(255)",
+                "ALTER TABLE users ADD COLUMN updated_at TIMESTAMP",
+            ]:
+                try:
+                    await conn.execute(text(stmt))
+                except Exception:
+                    pass
 
     async with SessionLocal() as db:
         result = await db.execute(select(User))
@@ -95,6 +142,15 @@ app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 app.include_router(api_router, prefix=settings.API_V1_STR)
 
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.error(f"Unhandled exception during {request.method} {request.url.path}: {exc}", exc_info=True)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": f"Internal Server Error: {str(exc)}"},
+    )
 
 @app.get("/")
 async def root():

@@ -315,6 +315,19 @@ async def get_predictions(
                 similarity_score=rec.similarity_score,
                 pesticide_name=rec.pesticide.name if rec.pesticide else None,
                 fertilizer_name=rec.fertilizer.name if rec.fertilizer else None,
+                active_ingredient=(
+                    rec.pesticide.active_ingredient if rec.pesticide
+                    else rec.fertilizer.active_ingredient if rec.fertilizer else None
+                ),
+                dosage=rec.pesticide.dosage if rec.pesticide else rec.fertilizer.dosage if rec.fertilizer else None,
+                application_method=(
+                    rec.pesticide.application_method if rec.pesticide
+                    else rec.fertilizer.application_method if rec.fertilizer else None
+                ),
+                suitable_life_stages=(
+                    rec.pesticide.suitable_life_stages if rec.pesticide
+                    else rec.fertilizer.suitable_life_stages if rec.fertilizer else None
+                ),
             )
             recommendations_list.append(rec_item)
         
@@ -435,6 +448,19 @@ async def get_prediction(
             similarity_score=rec.similarity_score,
             pesticide_name=rec.pesticide.name if rec.pesticide else None,
             fertilizer_name=rec.fertilizer.name if rec.fertilizer else None,
+            active_ingredient=(
+                rec.pesticide.active_ingredient if rec.pesticide
+                else rec.fertilizer.active_ingredient if rec.fertilizer else None
+            ),
+            dosage=rec.pesticide.dosage if rec.pesticide else rec.fertilizer.dosage if rec.fertilizer else None,
+            application_method=(
+                rec.pesticide.application_method if rec.pesticide
+                else rec.fertilizer.application_method if rec.fertilizer else None
+            ),
+            suitable_life_stages=(
+                rec.pesticide.suitable_life_stages if rec.pesticide
+                else rec.fertilizer.suitable_life_stages if rec.fertilizer else None
+            ),
         ))
     
     return PredictionResponse(
@@ -511,9 +537,10 @@ async def generate_pdf_report(
         if rec.fertilizer:
             rec_data.update({
                 "fertilizer_name": rec.fertilizer.name,
-                "composition": rec.fertilizer.composition,
+                "active_ingredient": rec.fertilizer.active_ingredient,
                 "dosage": rec.fertilizer.dosage,
-                "application_stage": rec.fertilizer.application_stage
+                "application_method": rec.fertilizer.application_method,
+                "suitable_life_stages": rec.fertilizer.suitable_life_stages
             })
         
         recommendations_list.append(rec_data)

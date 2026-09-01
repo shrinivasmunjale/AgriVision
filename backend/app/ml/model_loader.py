@@ -292,7 +292,7 @@ class PyTorchModelLoader:
         """
         Run two-stage pipeline:
         1. Run YOLOv8 detection. If no leaf, return an ignored result with reason.
-        2. Run EfficientNetB0 classification. If confidence < 60%, return ignored result.
+        2. Run EfficientNetB0 classification. If confidence < 50%, return ignored result.
 
         Returns a normalized dict:
             valid  -> {"status": "valid", "disease_id", "disease_name", "confidence_score",
@@ -357,8 +357,8 @@ class PyTorchModelLoader:
             class_idx = str(top_catid.item())
             confidence = round(float(top_prob.item()), 4)
 
-        # Step 9: If EfficientNet confidence is below 60%, return low confidence warning
-        if confidence < 0.60:
+        # Step 9: If EfficientNet confidence is below 50%, return low confidence warning
+        if confidence < 0.50:
             return {
                 "status": "ignored",
                 "reason": "Disease confidence too low",

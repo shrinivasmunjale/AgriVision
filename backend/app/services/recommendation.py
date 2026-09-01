@@ -196,7 +196,13 @@ class RecommendationEngine:
         if fertilizers:
             for fertilizer in fertilizers:
                 fname = fertilizer.name.lower()
-                fstage = (fertilizer.application_stage or "").lower()
+                stages = []
+                if getattr(fertilizer, "suitable_life_stages", None):
+                    if isinstance(fertilizer.suitable_life_stages, str):
+                        stages = [s.strip().lower() for s in fertilizer.suitable_life_stages.replace("[", "").replace("]", "").replace("\"", "").split(",") if s.strip()]
+                    else:
+                        stages = [str(s).lower() for s in fertilizer.suitable_life_stages]
+                fstage = " ".join(stages).lower()
                 base_score = 0.75
 
                 if "npk" in fname or "balanced" in fname:
@@ -207,7 +213,7 @@ class RecommendationEngine:
                     base_score = 0.86
 
                 multiplier = 1.0
-                if active_life_stage.lower() in fstage:
+                if active_life_stage.lower() in stages:
                     multiplier = 1.08
                 elif "all" in fstage or "throughout" in fstage:
                     multiplier = 1.02
