@@ -121,38 +121,65 @@ class RecommendationEngine:
         if not disease:
             return {"pesticides": [], "fertilizers": [], "life_stage": active_life_stage}
 
-        disease_text = f"{disease.name} {disease.description} {disease.symptoms} {disease.causes}"
+        disease_name_clean = disease.name.lower().replace("tomato___", "").replace("tomato", "").replace("_", " ").strip()
+        knowledge = self.get_disease_knowledge(disease.name)
 
         # 2. Get all pesticides and fertilizers from DB
         pesticides_result = await db.execute(select(Pesticide))
-        pesticides = pesticides_result.scalars().all()
+        pesticides = list(pesticides_result.scalars().all())
 
         fertilizers_result = await db.execute(select(Fertilizer))
-        fertilizers = fertilizers_result.scalars().all()
+        fertilizers = list(fertilizers_result.scalars().all())
 
-        # Build JSON pesticide lookup for life stage compatibility
-        pest_stage_map = {}
-        for item in self.pesticides_data:
-            name_key = item.get("name", "").lower()
-            pest_stage_map[name_key] = [s.lower() for s in item.get("suitable_life_stages", [])]
+        # Disease to specific treatment affinity heuristics
+        disease_affinity = {
+            "bacterial spot": {"copper": 0.94, "bacillus": 0.88, "oxychloride": 0.91},
+            "early blight": {"mancozeb": 0.93, "chlorothalonil": 0.91, "azoxystrobin": 0.86, "copper": 0.82},
+            "late blight": {"mancozeb": 0.95, "chlorothalonil": 0.92, "copper": 0.85, "azoxystrobin": 0.88},
+            "leaf mold": {"chlorothalonil": 0.92, "copper": 0.89, "mancozeb": 0.84},
+            "septoria leaf spot": {"chlorothalonil": 0.94, "mancozeb": 0.90, "copper": 0.85},
+            "spider mites": {"abamectin": 0.96, "neem": 0.88},
+            "two-spotted spider mite": {"abamectin": 0.96, "neem": 0.88},
+            "target spot": {"azoxystrobin": 0.93, "chlorothalonil": 0.89, "mancozeb": 0.85},
+            "yellow leaf curl virus": {"bacillus": 0.82, "neem": 0.86, "copper": 0.78},
+            "mosaic virus": {"bacillus": 0.80, "neem": 0.78},
+            "healthy": {"bacillus": 0.90, "copper": 0.75}
+        }
 
-        # 3. Recommend pesticides with life stage boost
+        # Find best affinity dictionary
+        target_aff = {}
+        for d_key, aff_dict in disease_affinity.items():
+            if d_key in disease_name_clean or disease_name_clean in d_key:
+                target_aff = aff_dict
+                break
+
+        # 3. Recommend pesticides
         pesticide_recommendations = []
         if pesticides:
             for pesticide in pesticides:
-                pesticide_text = f"{pesticide.name} {pesticide.active_ingredient} {pesticide.application_method}"
-                base_similarity = self._calculate_similarity(disease_text, pesticide_text)
+                pname = pesticide.name.lower()
+                # Determine base efficacy score
+                base_score = 0.65
+                for aff_k, aff_v in target_aff.items():
+                    if aff_k in pname or aff_k in pesticide.active_ingredient.lower():
+                        base_score = aff_v
+                        break
 
-                # Life stage compatibility multiplier
+                # Life stage compatibility check
+                suitable_stages = []
+                for p_data in self.pesticides_data:
+                    if p_data.get("name", "").lower() in pname:
+                        suitable_stages = [s.lower() for s in p_data.get("suitable_life_stages", [])]
+                        break
+
                 multiplier = 1.0
-                suitable_stages = pest_stage_map.get(pesticide.name.lower(), [])
                 if suitable_stages:
                     if active_life_stage.lower() in suitable_stages:
-                        multiplier = 1.25  # 25% boost for stage-matching treatment
+                        multiplier = 1.05
                     else:
-                        multiplier = 0.85  # slight penalty if not primary stage
+                        multiplier = 0.92
 
-                final_score = round(min(1.0, base_similarity * multiplier), 4)
+                final_score = round(min(0.98, max(0.60, base_score * multiplier)), 2)
 
                 pesticide_recommendations.append({
                     "pesticide_id": pesticide.id,
@@ -164,21 +191,28 @@ class RecommendationEngine:
             pesticide_recommendations.sort(key=lambda x: x["similarity_score"], reverse=True)
             pesticide_recommendations = pesticide_recommendations[:top_k]
 
-        # 4. Recommend fertilizers with life stage match
+        # 4. Recommend fertilizers
         fertilizer_recommendations = []
         if fertilizers:
             for fertilizer in fertilizers:
-                fertilizer_text = f"{fertilizer.name} {fertilizer.composition} {fertilizer.application_stage}"
-                base_similarity = self._calculate_similarity(disease_text, fertilizer_text)
+                fname = fertilizer.name.lower()
+                fstage = (fertilizer.application_stage or "").lower()
+                base_score = 0.75
 
-                # Check if fertilizer application_stage matches current active stage
+                if "npk" in fname or "balanced" in fname:
+                    base_score = 0.90
+                elif "calcium" in fname:
+                    base_score = 0.88 if active_life_stage.lower() in ["flowering", "fruiting"] else 0.82
+                elif "potassium" in fname or "sulfate" in fname or "boost" in fname:
+                    base_score = 0.86
+
                 multiplier = 1.0
-                if active_life_stage.lower() in fertilizer.application_stage.lower():
-                    multiplier = 1.3
-                elif "throughout" in fertilizer.application_stage.lower() or "all" in fertilizer.application_stage.lower():
-                    multiplier = 1.1
+                if active_life_stage.lower() in fstage:
+                    multiplier = 1.08
+                elif "all" in fstage or "throughout" in fstage:
+                    multiplier = 1.02
 
-                final_score = round(min(1.0, base_similarity * multiplier), 4)
+                final_score = round(min(0.96, max(0.65, base_score * multiplier)), 2)
 
                 fertilizer_recommendations.append({
                     "fertilizer_id": fertilizer.id,

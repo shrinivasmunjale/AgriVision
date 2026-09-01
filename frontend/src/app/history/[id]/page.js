@@ -399,8 +399,8 @@ export default function PredictionDetailPage() {
             </div>
           )}
 
-          {/* Standard Treatment Recommendations Fallback */}
-          {!isHealthy && prediction.recommendations && prediction.recommendations.length > 0 && (
+          {/* Standard Treatment Recommendations Fallback (only when structured knowledge cards are unavailable) */}
+          {!isHealthy && (!details?.recommended_pesticides || details.recommended_pesticides.length === 0) && prediction.recommendations && prediction.recommendations.length > 0 && (
             <div className="bg-surface-card rounded-2xl p-6 border border-border-subtle shadow-sm">
               <div className="flex items-center gap-2 mb-4 text-primary-400 font-bold text-xl">
                 <BookOpen className="w-6 h-6" />

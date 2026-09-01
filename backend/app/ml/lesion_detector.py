@@ -311,16 +311,27 @@ def _compute_single_disease_box(valid_contours, mask, orig_w, orig_h, scale):
         oy0 = max(0.0, center_y - new_h / 2.0)
         oy1 = min(float(orig_h), center_y + new_h / 2.0)
 
-    # Ensure minimum visible box size (at least 20x20 pixels)
-    if (ox1 - ox0) < 20.0:
-        cx = (ox0 + ox1) / 2.0
-        ox0 = max(0.0, cx - 10.0)
-        ox1 = min(float(orig_w), cx + 10.0)
+    # Convert small boxes to a clear medium-sized box (at least 28% of width and height)
+    min_w = max(140.0, orig_w * 0.28)
+    min_h = max(140.0, orig_h * 0.28)
 
-    if (oy1 - oy0) < 20.0:
+    if (ox1 - ox0) < min_w:
+        cx = (ox0 + ox1) / 2.0
+        ox0 = max(0.0, cx - min_w / 2.0)
+        ox1 = min(float(orig_w), cx + min_w / 2.0)
+        if ox0 == 0.0:
+            ox1 = min(float(orig_w), min_w)
+        elif ox1 == float(orig_w):
+            ox0 = max(0.0, float(orig_w) - min_w)
+
+    if (oy1 - oy0) < min_h:
         cy = (oy0 + oy1) / 2.0
-        oy0 = max(0.0, cy - 10.0)
-        oy1 = min(float(orig_h), cy + 10.0)
+        oy0 = max(0.0, cy - min_h / 2.0)
+        oy1 = min(float(orig_h), cy + min_h / 2.0)
+        if oy0 == 0.0:
+            oy1 = min(float(orig_h), min_h)
+        elif oy1 == float(orig_h):
+            oy0 = max(0.0, float(orig_h) - min_h)
 
     return [ox0, oy0, ox1, oy1]
 

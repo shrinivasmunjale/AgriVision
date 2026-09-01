@@ -31,13 +31,26 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-surface-base p-4">
+    <div className="min-h-screen flex items-center justify-center bg-surface-base p-4 relative overflow-hidden">
+      {/* Background Image */}
+      <div 
+        className="absolute inset-0 z-0"
+        style={{
+          backgroundImage: 'url(/auth-bg.jpg)',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat',
+        }}
+      >
+        <div className="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
+      </div>
+
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md"
+        className="w-full max-w-md relative z-10"
       >
-        <div className="bg-surface-light rounded-2xl p-8 shadow-lg">
+        <div className="bg-white/95 dark:bg-surface-light/95 backdrop-blur-md rounded-2xl p-8 shadow-2xl border border-white/20">
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold text-text-inverse mb-2">
               Welcome Back

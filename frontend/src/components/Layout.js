@@ -39,7 +39,7 @@ export default function Layout({ children }) {
   const isAdmin = profile?.role === 'admin'
 
   const navItems = [
-    { icon: Home, label: 'Home', href: '/dashboard' },
+    ...(isAdmin ? [] : [{ icon: Home, label: 'Home', href: '/dashboard' }]),
     ...(isAdmin ? [] : [
       { icon: Camera, label: 'Scan', href: '/scan' },
       { icon: History, label: 'History', href: '/history' },

@@ -25,8 +25,8 @@ export default function DashboardPage() {
     queryKey: ['predictions'],
     queryFn: async () => {
       const token = await getAccessToken()
-      const response = await predictionsAPI.getAll({ limit: 5 }, token)
-      return response.data
+      const response = await predictionsAPI.getAll({ limit: 1000 }, token)
+      return response.data || []
     },
     enabled: !!user,
   })
@@ -42,9 +42,13 @@ export default function DashboardPage() {
     )
   }
 
-  const healthyCount = predictions?.filter(p => p.disease_name === 'Healthy').length || 0
-  const totalCount = predictions?.length || 0
+  const allPredictions = predictions || []
+  const totalCount = allPredictions.length
+  const healthyCount = allPredictions.filter(
+    (p) => p.disease_id === 1 || p.disease_name === 'Healthy' || /healthy/i.test(p.disease_name || '')
+  ).length
   const healthyRatio = totalCount > 0 ? ((healthyCount / totalCount) * 100).toFixed(1) : 0
+  const recentPredictions = allPredictions.slice(0, 5)
 
   return (
     <Layout>
@@ -224,9 +228,9 @@ export default function DashboardPage() {
             <div className="text-center py-8">
               <div className="w-8 h-8 border-4 border-primary-400 border-t-transparent rounded-full animate-spin mx-auto"></div>
             </div>
-          ) : predictions && predictions.length > 0 ? (
+          ) : recentPredictions && recentPredictions.length > 0 ? (
             <div className="space-y-3">
-              {predictions.map((prediction, index) => (
+              {recentPredictions.map((prediction, index) => (
                 <Link
                   key={prediction.id}
                   href={`/history/${prediction.id}`}

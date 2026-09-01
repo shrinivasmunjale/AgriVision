@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { Eye, EyeOff, Sparkles, Scan, Maximize2, ShieldAlert, CheckCircle2 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
@@ -35,6 +35,67 @@ export default function BoundingBoxImage({
   const [showBadges, setShowBadges] = useState(true)
   const [hoveredIndex, setHoveredIndex] = useState(null)
   const [imgError, setImgError] = useState(false)
+  const containerRef = useRef(null)
+  const imgRef = useRef(null)
+  const [imgRect, setImgRect] = useState({ top: 0, left: 0, width: '100%', height: '100%' })
+
+  const updateImgRect = useCallback(() => {
+    if (!containerRef.current || !imgRef.current) return
+    const container = containerRef.current
+    const img = imgRef.current
+
+    const cW = container.clientWidth
+    const cH = container.clientHeight
+    const nW = img.naturalWidth
+    const nH = img.naturalHeight
+
+    if (!cW || !cH || !nW || !nH) {
+      setImgRect({ top: 0, left: 0, width: '100%', height: '100%' })
+      return
+    }
+
+    const imgAspect = nW / nH
+    const containerAspect = cW / cH
+
+    let rW, rH, rTop, rLeft
+    if (imgAspect < containerAspect) {
+      // Taller (portrait) image in wider container
+      rH = cH
+      rW = cH * imgAspect
+      rTop = 0
+      rLeft = (cW - rW) / 2
+    } else {
+      // Wider (landscape) image in taller container
+      rW = cW
+      rH = cW / imgAspect
+      rLeft = 0
+      rTop = (cH - rH) / 2
+    }
+
+    setImgRect({
+      top: `${rTop}px`,
+      left: `${rLeft}px`,
+      width: `${rW}px`,
+      height: `${rH}px`,
+    })
+  }, [])
+
+  useEffect(() => {
+    updateImgRect()
+    const handleResize = () => updateImgRect()
+    window.addEventListener('resize', handleResize)
+
+    let observer = null
+    if (typeof ResizeObserver !== 'undefined' && containerRef.current) {
+      observer = new ResizeObserver(() => updateImgRect())
+      observer.observe(containerRef.current)
+    }
+
+    return () => {
+      window.removeEventListener('resize', handleResize)
+      if (observer) observer.disconnect()
+    }
+  }, [src, updateImgRect])
 
   // Normalize bounding boxes - ensure at most 1 box is selected and verify bounds
   const normalizedBoxes = (boundingBoxes && boundingBoxes.length > 0)
@@ -101,57 +162,33 @@ export default function BoundingBoxImage({
 
   return (
     <div className={`relative w-full rounded-2xl overflow-hidden bg-surface-card border border-border-subtle group ${className}`}>
-      {/* Controls Bar Header / Overlay */}
-      {showControls && (
-        <div className="absolute top-3 right-3 z-30 flex items-center gap-2 bg-black/70 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10 text-xs shadow-lg">
-          <button
-            type="button"
-            onClick={() => setShowBoxes((prev) => !prev)}
-            className={`flex items-center gap-1.5 px-2 py-1 rounded-full font-medium transition-all ${
-              showBoxes
-                ? 'bg-primary-500/30 text-emerald-300 border border-emerald-400/40'
-                : 'text-text-secondary hover:text-text-primary'
-            }`}
-            title="Toggle Bounding Boxes"
-          >
-            {showBoxes ? <Eye className="w-3.5 h-3.5 text-emerald-400" /> : <EyeOff className="w-3.5 h-3.5" />}
-            <span>Bounding Box</span>
-          </button>
-
-          {showBoxes && hasBoxes && (
-            <button
-              type="button"
-              onClick={() => setShowBadges((prev) => !prev)}
-              className={`flex items-center gap-1 px-2 py-1 rounded-full transition-all ${
-                showBadges ? 'text-text-primary font-semibold' : 'text-text-secondary opacity-60'
-              }`}
-              title="Toggle Confidence Badges"
-            >
-              <Sparkles className="w-3 h-3 text-amber-400" />
-              <span>Confidence</span>
-            </button>
-          )}
-
-          <div className="w-[1px] h-3.5 bg-white/20" />
-          <span className="text-[11px] font-mono text-emerald-400/90 font-semibold px-1">
-            {hasBoxes ? '1 disease region' : 'No box'}
-          </span>
-        </div>
-      )}
-
-      {/* Image Display */}
-      <div className={`relative w-full ${heightClass} flex items-center justify-center bg-surface-base overflow-hidden`}>
+      {/* Image Display Container */}
+      <div
+        ref={containerRef}
+        className={`relative w-full ${heightClass} flex items-center justify-center bg-surface-base overflow-hidden`}
+      >
         <img
+          ref={imgRef}
           src={imgError ? '/placeholder-leaf.png' : src}
           alt={alt}
+          onLoad={updateImgRect}
           className="w-full h-full object-contain select-none"
           onError={() => setImgError(true)}
         />
 
-        {/* Bounding Box Overlays */}
+        {/* Bounding Box Overlays - precisely positioned over the rendered image */}
         <AnimatePresence>
           {showBoxes && hasBoxes && (
-            <div className="absolute inset-0 pointer-events-none">
+            <div
+              style={{
+                position: 'absolute',
+                top: imgRect.top,
+                left: imgRect.left,
+                width: imgRect.width,
+                height: imgRect.height,
+                pointerEvents: 'none',
+              }}
+            >
               {activeBoxes.map((box, idx) => {
                 const isHovered = hoveredIndex === idx
                 const confPercent = Math.round(box.confidence > 1 ? box.confidence : box.confidence * 100)
