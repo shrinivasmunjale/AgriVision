@@ -4,6 +4,7 @@ import io
 import httpx
 from pathlib import Path
 from typing import List, Dict, Optional, Tuple
+from PIL import Image
 
 # Base directory for ML artifacts
 ML_DIR = Path(__file__).resolve().parent
@@ -341,7 +342,23 @@ class PyTorchModelLoader:
             cropped_image = image
 
         # Step 6: Classify with EfficientNetB0
-        input_tensor = self.transform(cropped_image).unsqueeze(0).to(self.device)
+        if self.model is None:
+            return {
+                "status": "error",
+                "reason": "Model not available",
+                "image_url": image_url,
+                "filename": display_name,
+            }
+
+        import torch
+        # Ensure cropped_image is a PIL Image
+        if not isinstance(cropped_image, Image):
+            cropped_image = Image.fromarray(cropped_image)
+        
+        input_tensor = self.transform(cropped_image)
+        if not isinstance(input_tensor, torch.Tensor):
+            input_tensor = torch.tensor(input_tensor)
+        input_tensor = input_tensor.unsqueeze(0).to(self.device)
 
         with torch.no_grad():
             outputs = self.model(input_tensor)
@@ -415,8 +432,8 @@ class PyTorchModelLoader:
             # around the leaf ROI center so it pinpoints the infected area without covering the whole image
             W, H = image.size
             if not bounding_boxes:
-                if leaf_roi and len(leaf_roi) >= 4:
-                    rx0, ry0, rx1, ry1 = leaf_roi
+                if leaf_roi is not None and isinstance(leaf_roi, (list, tuple)) and len(leaf_roi) >= 4:
+                    rx0, ry0, rx1, ry1 = leaf_roi  # type: ignore
                     cx = (rx0 + rx1) / 2.0
                     cy = (ry0 + ry1) / 2.0
                     fw = min(W * 0.45, max(40.0, (rx1 - rx0) * 0.50))
