@@ -1,0 +1,30 @@
+name: Build and Push Docker Image
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login to Azure Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.AZURE_REGISTRY_LOGIN_SERVER }}
+          username: ${{ secrets.AZURE_REGISTRY_USERNAME }}
+          password: ${{ secrets.AZURE_REGISTRY_PASSWORD }}
+
+      - name: Build Docker Image
+        run: |
+          docker build \
+            -t ${{ secrets.AZURE_REGISTRY_LOGIN_SERVER }}/agrivision-backend:latest \
+            ./backend
+
+      - name: Push Docker Image
+        run: |
+          docker push ${{ secrets.AZURE_REGISTRY_LOGIN_SERVER }}/agrivision-backend:latest
