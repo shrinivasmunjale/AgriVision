@@ -8,7 +8,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /workspace
 
-# Install system dependencies required by ReportLab/PyCairo and PostgreSQL
+# Install system dependencies required by ReportLab/PyCairo, PostgreSQL, PyTorch, and OpenCV
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     gcc \
@@ -16,6 +16,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libcairo2 \
     libcairo2-dev \
     libpq-dev \
+    libgl1 \
+    libglib2.0-0 \
+    libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements

@@ -24,86 +24,87 @@ logger = logging.getLogger("uvicorn.error")
 async def lifespan(app: FastAPI):
     print("Creating database tables...")
 
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-        # Existing deployments created before scan context was introduced do
-        # not receive new columns from create_all(). Keep this compatibility
-        # upgrade here so a Render restart can serve scans before Alembic is
-        # run as part of the deployment command.
-        if conn.dialect.name == "postgresql":
-            # Predictions
-            await conn.execute(text(
-                "ALTER TABLE predictions ADD COLUMN IF NOT EXISTS crop_age_days INTEGER"
-            ))
-            await conn.execute(text(
-                "ALTER TABLE predictions ADD COLUMN IF NOT EXISTS life_stage VARCHAR(50)"
-            ))
-            await conn.execute(text(
-                "ALTER TABLE predictions ADD COLUMN IF NOT EXISTS bounding_boxes JSONB"
-            ))
-            # Pesticides
-            await conn.execute(text(
-                "ALTER TABLE pesticides ADD COLUMN IF NOT EXISTS active_ingredient VARCHAR(255) DEFAULT ''"
-            ))
-            await conn.execute(text(
-                "ALTER TABLE pesticides ADD COLUMN IF NOT EXISTS dosage VARCHAR(255) DEFAULT ''"
-            ))
-            await conn.execute(text(
-                "ALTER TABLE pesticides ADD COLUMN IF NOT EXISTS application_method VARCHAR(512) DEFAULT ''"
-            ))
-            await conn.execute(text(
-                "ALTER TABLE pesticides ADD COLUMN IF NOT EXISTS suitable_life_stages TEXT DEFAULT '[]'"
-            ))
-            # Fertilizers
-            await conn.execute(text(
-                "ALTER TABLE fertilizers ADD COLUMN IF NOT EXISTS active_ingredient VARCHAR(255) DEFAULT ''"
-            ))
-            await conn.execute(text(
-                "ALTER TABLE fertilizers ADD COLUMN IF NOT EXISTS dosage VARCHAR(255) DEFAULT ''"
-            ))
-            await conn.execute(text(
-                "ALTER TABLE fertilizers ADD COLUMN IF NOT EXISTS application_method VARCHAR(512) DEFAULT ''"
-            ))
-            await conn.execute(text(
-                "ALTER TABLE fertilizers ADD COLUMN IF NOT EXISTS suitable_life_stages TEXT DEFAULT '[]'"
-            ))
-            # Users
-            await conn.execute(text(
-                "ALTER TABLE users ADD COLUMN IF NOT EXISTS hashed_password VARCHAR(255)"
-            ))
-            await conn.execute(text(
-                "ALTER TABLE users ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
-            ))
-        elif conn.dialect.name == "sqlite":
-            for stmt in [
-                "ALTER TABLE predictions ADD COLUMN bounding_boxes JSON",
-                "ALTER TABLE predictions ADD COLUMN crop_age_days INTEGER",
-                "ALTER TABLE predictions ADD COLUMN life_stage VARCHAR(50)",
-                "ALTER TABLE pesticides ADD COLUMN active_ingredient VARCHAR(255) DEFAULT ''",
-                "ALTER TABLE pesticides ADD COLUMN dosage VARCHAR(255) DEFAULT ''",
-                "ALTER TABLE pesticides ADD COLUMN application_method VARCHAR(512) DEFAULT ''",
-                "ALTER TABLE pesticides ADD COLUMN suitable_life_stages TEXT DEFAULT '[]'",
-                "ALTER TABLE fertilizers ADD COLUMN active_ingredient VARCHAR(255) DEFAULT ''",
-                "ALTER TABLE fertilizers ADD COLUMN dosage VARCHAR(255) DEFAULT ''",
-                "ALTER TABLE fertilizers ADD COLUMN application_method VARCHAR(512) DEFAULT ''",
-                "ALTER TABLE fertilizers ADD COLUMN suitable_life_stages TEXT DEFAULT '[]'",
-                "ALTER TABLE users ADD COLUMN hashed_password VARCHAR(255)",
-                "ALTER TABLE users ADD COLUMN updated_at TIMESTAMP",
-            ]:
-                try:
-                    await conn.execute(text(stmt))
-                except Exception:
-                    pass
+    try:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+            # Existing deployments compatibility upgrade
+            if conn.dialect.name == "postgresql":
+                # Predictions
+                await conn.execute(text(
+                    "ALTER TABLE predictions ADD COLUMN IF NOT EXISTS crop_age_days INTEGER"
+                ))
+                await conn.execute(text(
+                    "ALTER TABLE predictions ADD COLUMN IF NOT EXISTS life_stage VARCHAR(50)"
+                ))
+                await conn.execute(text(
+                    "ALTER TABLE predictions ADD COLUMN IF NOT EXISTS bounding_boxes JSONB"
+                ))
+                # Pesticides
+                await conn.execute(text(
+                    "ALTER TABLE pesticides ADD COLUMN IF NOT EXISTS active_ingredient VARCHAR(255) DEFAULT ''"
+                ))
+                await conn.execute(text(
+                    "ALTER TABLE pesticides ADD COLUMN IF NOT EXISTS dosage VARCHAR(255) DEFAULT ''"
+                ))
+                await conn.execute(text(
+                    "ALTER TABLE pesticides ADD COLUMN IF NOT EXISTS application_method VARCHAR(512) DEFAULT ''"
+                ))
+                await conn.execute(text(
+                    "ALTER TABLE pesticides ADD COLUMN IF NOT EXISTS suitable_life_stages TEXT DEFAULT '[]'"
+                ))
+                # Fertilizers
+                await conn.execute(text(
+                    "ALTER TABLE fertilizers ADD COLUMN IF NOT EXISTS active_ingredient VARCHAR(255) DEFAULT ''"
+                ))
+                await conn.execute(text(
+                    "ALTER TABLE fertilizers ADD COLUMN IF NOT EXISTS dosage VARCHAR(255) DEFAULT ''"
+                ))
+                await conn.execute(text(
+                    "ALTER TABLE fertilizers ADD COLUMN IF NOT EXISTS application_method VARCHAR(512) DEFAULT ''"
+                ))
+                await conn.execute(text(
+                    "ALTER TABLE fertilizers ADD COLUMN IF NOT EXISTS suitable_life_stages TEXT DEFAULT '[]'"
+                ))
+                # Users
+                await conn.execute(text(
+                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS hashed_password VARCHAR(255)"
+                ))
+                await conn.execute(text(
+                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
+                ))
+            elif conn.dialect.name == "sqlite":
+                for stmt in [
+                    "ALTER TABLE predictions ADD COLUMN bounding_boxes JSON",
+                    "ALTER TABLE predictions ADD COLUMN crop_age_days INTEGER",
+                    "ALTER TABLE predictions ADD COLUMN life_stage VARCHAR(50)",
+                    "ALTER TABLE pesticides ADD COLUMN active_ingredient VARCHAR(255) DEFAULT ''",
+                    "ALTER TABLE pesticides ADD COLUMN dosage VARCHAR(255) DEFAULT ''",
+                    "ALTER TABLE pesticides ADD COLUMN application_method VARCHAR(512) DEFAULT ''",
+                    "ALTER TABLE pesticides ADD COLUMN suitable_life_stages TEXT DEFAULT '[]'",
+                    "ALTER TABLE fertilizers ADD COLUMN active_ingredient VARCHAR(255) DEFAULT ''",
+                    "ALTER TABLE fertilizers ADD COLUMN dosage VARCHAR(255) DEFAULT ''",
+                    "ALTER TABLE fertilizers ADD COLUMN application_method VARCHAR(512) DEFAULT ''",
+                    "ALTER TABLE fertilizers ADD COLUMN suitable_life_stages TEXT DEFAULT '[]'",
+                    "ALTER TABLE users ADD COLUMN hashed_password VARCHAR(255)",
+                    "ALTER TABLE users ADD COLUMN updated_at TIMESTAMP",
+                ]:
+                    try:
+                        await conn.execute(text(stmt))
+                    except Exception:
+                        pass
 
-    async with SessionLocal() as db:
-        result = await db.execute(select(User))
-        user = result.scalars().first()
+        async with SessionLocal() as db:
+            result = await db.execute(select(User))
+            user = result.scalars().first()
 
-        if user is None:
-            print("Database empty. Running seed...")
-            await seed.seed_data()
-        else:
-            print("Database already initialized.")
+            if user is None:
+                print("Database empty. Running seed...")
+                await seed.seed_data()
+            else:
+                print("Database already initialized.")
+    except Exception as e:
+        logger.error(f"[STARTUP ERROR] Database initialization failed: {e}", exc_info=True)
+        print(f"[STARTUP ERROR] Database initialization failed: {e}")
 
     # Pre-warm ML models once at application startup
     try:

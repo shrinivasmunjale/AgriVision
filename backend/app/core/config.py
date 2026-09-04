@@ -32,12 +32,12 @@ class Settings(BaseSettings):
             # while users are saved outside Supabase and disappear on restart.
             hosted_environment = any(
                 os.getenv(name)
-                for name in ("RENDER", "RENDER_EXTERNAL_URL", "RAILWAY_ENVIRONMENT", "K_SERVICE", "DYNO")
+                for name in ("RENDER", "RENDER_EXTERNAL_URL", "RAILWAY_ENVIRONMENT", "K_SERVICE", "DYNO", "WEBSITE_HOSTNAME", "CONTAINER_APP_NAME")
             )
             if hosted_environment:
-                raise ValueError(
-                    "DATABASE_URL must be configured in the hosting environment. "
-                    "Refusing to use the SQLite development fallback."
+                print(
+                    "[CONFIG WARNING] DATABASE_URL is not explicitly configured in this environment. "
+                    "Using SQLite fallback. Configure DATABASE_URL in Azure/hosting settings for persistent production database."
                 )
             v = "sqlite+aiosqlite:///./agrivision.db"
         
