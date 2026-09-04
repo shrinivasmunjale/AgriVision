@@ -3,6 +3,58 @@ import axios from 'axios'
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'
 
+/**
+ * Normalizes image URLs to prevent Mixed Content (HTTP on HTTPS) and resolve
+ * localhost URLs to the production backend origin.
+ */
+export const getImageUrl = (url) => {
+  if (!url) return '/placeholder-leaf.png'
+
+  if (url.startsWith('data:') || url.startsWith('blob:')) {
+    return url
+  }
+
+  const envApi = process.env.NEXT_PUBLIC_API_URL || ''
+  let backendOrigin = ''
+  if (envApi) {
+    try {
+      const parsed = new URL(envApi)
+      backendOrigin = parsed.origin
+    } catch {
+      backendOrigin = envApi.replace(/\/api\/v1\/?$/, '')
+    }
+  }
+
+  let formatted = url
+
+  // If URL points to localhost/127.0.0.1 and we have a production backend configured
+  if (formatted.includes('localhost:8000') || formatted.includes('127.0.0.1:8000')) {
+    if (backendOrigin && !backendOrigin.includes('localhost') && !backendOrigin.includes('127.0.0.1')) {
+      formatted = formatted.replace(/^http:\/\/(localhost|127\.0\.0\.1):8000/, backendOrigin)
+    }
+  }
+
+  // If URL is relative
+  if (formatted.startsWith('/uploads/')) {
+    if (backendOrigin) {
+      formatted = `${backendOrigin}${formatted}`
+    }
+  }
+
+  // On HTTPS, upgrade http to https to avoid mixed-content blocking
+  if (
+    typeof window !== 'undefined' &&
+    window.location.protocol === 'https:' &&
+    formatted.startsWith('http://') &&
+    !formatted.includes('localhost') &&
+    !formatted.includes('127.0.0.1')
+  ) {
+    formatted = formatted.replace(/^http:\/\//i, 'https://')
+  }
+
+  return formatted
+}
+
 export const api = axios.create({
   baseURL: API_URL,
   headers: {

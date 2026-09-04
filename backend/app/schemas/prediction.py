@@ -1,6 +1,7 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from typing import Optional, List, Dict, Union
 from datetime import datetime
+from app.core.config import settings
 
 class RecommendationItem(BaseModel):
     id: int
@@ -49,6 +50,19 @@ class PredictionResponse(BaseModel):
     created_at: datetime
     recommendations: List[RecommendationItem] = []
     disease_details: Optional[dict] = None
+
+    @field_validator("image_url", mode="before")
+    @classmethod
+    def format_image_url(cls, v: Optional[str]) -> str:
+        if not v or not isinstance(v, str):
+            return v or ""
+        backend_url = settings.BACKEND_URL.rstrip("/")
+        if "localhost:8000" in v or "127.0.0.1:8000" in v:
+            if backend_url and "localhost" not in backend_url and "127.0.0.1" not in backend_url:
+                v = v.replace("http://localhost:8000", backend_url).replace("http://127.0.0.1:8000", backend_url)
+        elif v.startswith("/uploads/"):
+            v = f"{backend_url}{v}"
+        return v
 
     class Config:
         from_attributes = True

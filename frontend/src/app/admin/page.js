@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
-import { adminAPI, predictionsAPI } from '@/lib/api'
+import { adminAPI, predictionsAPI, getImageUrl } from '@/lib/api'
 import Layout from '@/components/Layout'
 import { Users, Activity, TrendingUp, Database, Eye, User, Calendar, Mail, Phone, MapPin, Trash2 } from 'lucide-react'
 import { motion } from 'framer-motion'
@@ -399,7 +399,7 @@ export default function AdminPage() {
                     <div key={pred.id} className="bg-surface-base rounded-xl p-4 border border-border-subtle hover:border-primary-400/50 transition-colors">
                       <div className="aspect-video rounded-lg overflow-hidden mb-3 bg-surface-card">
                         <img
-                          src={pred.image_url}
+                          src={getImageUrl(pred.image_url)}
                           alt="Prediction"
                           className="w-full h-full object-cover"
                           onError={(e) => {

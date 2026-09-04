@@ -66,6 +66,20 @@ class Settings(BaseSettings):
     # Backend URL for image serving (defaults to localhost for development)
     BACKEND_URL: str = "http://localhost:8000"
 
+    @field_validator("BACKEND_URL", mode="before")
+    @classmethod
+    def assemble_backend_url(cls, v: Optional[str]) -> str:
+        if v and v.strip() and v != "http://localhost:8000":
+            return v.rstrip("/")
+        # Check automatic platform environment variables (Render / Railway)
+        render_url = os.getenv("RENDER_EXTERNAL_URL")
+        if render_url:
+            return render_url.rstrip("/")
+        railway_url = os.getenv("RAILWAY_STATIC_URL") or os.getenv("RAILWAY_PUBLIC_DOMAIN")
+        if railway_url:
+            return f"https://{railway_url}".rstrip("/")
+        return v or "http://localhost:8000"
+
     # Authentication - use secure random default if not provided
     SUPABASE_JWT_SECRET: str = "agrivision-secure-jwt-secret-change-in-production-2024"
     SUPABASE_JWT_ALGORITHM: str = "HS256"

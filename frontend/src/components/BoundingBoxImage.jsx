@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { Eye, EyeOff, Sparkles, Scan, Maximize2, ShieldAlert, CheckCircle2 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { getImageUrl } from '@/lib/api'
 
 /**
  * BoundingBoxImage
@@ -169,7 +170,7 @@ export default function BoundingBoxImage({
       >
         <img
           ref={imgRef}
-          src={imgError ? '/placeholder-leaf.png' : src}
+          src={imgError ? '/placeholder-leaf.png' : getImageUrl(src)}
           alt={alt}
           onLoad={updateImgRect}
           className="w-full h-full object-contain select-none"

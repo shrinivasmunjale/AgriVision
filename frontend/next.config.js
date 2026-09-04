@@ -4,8 +4,12 @@ const path = require('path')
 const nextConfig = {
   reactStrictMode: true,
   images: {
-    domains: ['images.unsplash.com', 'mock-storage.agrivision.ai', 'localhost'],
+    domains: ['images.unsplash.com', 'mock-storage.agrivision.ai', 'localhost', 'agrivision-c6e6hjc6fegmgdda.centralindia-01.azurewebsites.net'],
     remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: '**.azurewebsites.net',
+      },
       {
         protocol: 'https',
         hostname: '**.r2.cloudflarestorage.com',

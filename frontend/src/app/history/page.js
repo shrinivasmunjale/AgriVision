@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { predictionsAPI } from '@/lib/api'
+import { predictionsAPI, getImageUrl } from '@/lib/api'
 import Layout from '@/components/Layout'
 import { Search, Trash2, AlertTriangle, X } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -143,7 +143,7 @@ export default function HistoryPage() {
                     >
                       <div className="aspect-video bg-surface-base relative overflow-hidden">
                         <img
-                          src={prediction.image_url}
+                          src={getImageUrl(prediction.image_url)}
                           alt="Leaf scan"
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                           onError={(e) => {
