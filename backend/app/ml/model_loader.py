@@ -352,7 +352,7 @@ class PyTorchModelLoader:
 
         import torch
         # Ensure cropped_image is a PIL Image
-        if not isinstance(cropped_image, Image):
+        if not isinstance(cropped_image, Image.Image):
             cropped_image = Image.fromarray(cropped_image)
         
         input_tensor = self.transform(cropped_image)
