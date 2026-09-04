@@ -1,6 +1,5 @@
 import logging
 from contextlib import asynccontextmanager
-from datetime import datetime
 from pathlib import Path
 
 from fastapi import FastAPI, Request
@@ -172,7 +171,8 @@ async def root():
 @app.get("/health")
 async def health():
     return {
-        "success": True,
-        "message": "Server is healthy",
-        "timestamp": datetime.utcnow().isoformat() + "Z"
+        "status": "healthy",
+        "project": "AgriVision AI",
+        "version": "2.0.1",
+        "deployed_at": "2026-09-04",
     }
