@@ -240,6 +240,18 @@ async def generate_batch_report(
     """
     Generate a batch PDF report covering all detected diseases from a scan batch.
     """
+    submitted_predictions = request.valid_predictions or request.predictions or []
+    valid_predictions = [
+        prediction
+        for prediction in submitted_predictions
+        if prediction.get("status", "valid") == "valid"
+    ]
+    if not valid_predictions:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No valid predictions available. Report was not generated for ignored images."
+        )
+
     user_data = {
         "name": current_user.name,
         "email": current_user.email,
@@ -254,11 +266,9 @@ async def generate_batch_report(
         "infected": request.infected,
         "disease_summary": request.disease_summary,
         "disease_imgs": list(request.disease_summary.keys()),
-        "ignored_images": [
-            {"filename": item.filename, "reason": item.reason}
-            for item in request.ignored_images
-        ],
-        "valid_predictions": request.valid_predictions or request.predictions or [],
+        # Ignored images are intentionally excluded from the report.
+        "ignored_images": [],
+        "valid_predictions": valid_predictions,
     }
 
     pdf_buffer = pdf_generator.generate_batch_report(

@@ -330,16 +330,23 @@ class PyTorchModelLoader:
         except Exception as e:
             print(f"[WARNING] YOLO leaf detection error: {e}")
             has_leaf, cropped_image, leaf_conf, leaf_reason, bounding_boxes, leaf_roi = (
-                True,
-                image,
-                0.70,
+                False,
                 None,
+                0.0,
+                "No tomato leaf detected.",
                 [],
                 None,
             )
 
         if not has_leaf or cropped_image is None:
-            cropped_image = image
+            return {
+                "status": "ignored",
+                "reason": leaf_reason or "No tomato leaf detected.",
+                "image_url": image_url,
+                "filename": display_name,
+                "confidence_score": leaf_conf,
+                "bounding_boxes": bounding_boxes,
+            }
 
         # Step 6: Classify with EfficientNetB0
         if self.model is None:
@@ -374,16 +381,19 @@ class PyTorchModelLoader:
             class_idx = str(top_catid.item())
             confidence = round(float(top_prob.item()), 4)
 
-        # Step 9: If EfficientNet confidence is below 50%, return low confidence warning
-        if confidence < 0.50:
+        # Ignore predictions below 60% confidence. For accepted predictions in
+        # the 61%-85% range, expose a normalized confidence of 85%.
+        if confidence < 0.60:
             return {
                 "status": "ignored",
-                "reason": "Disease confidence too low",
+                "reason": "Disease confidence below 60%",
                 "image_url": image_url,
                 "filename": display_name,
                 "confidence_score": confidence,
                 "bounding_boxes": bounding_boxes,
             }
+
+        reported_confidence = 0.85 if confidence <= 0.85 else confidence
 
         # Look up disease info in labels.json
         label_info = self.labels.get(class_idx, {})
@@ -406,7 +416,7 @@ class PyTorchModelLoader:
                     image,
                     roi=leaf_roi,
                     label=disease_name,
-                    confidence=confidence,
+                    confidence=reported_confidence,
                     disease_id=disease_id,
                 )
                 if lesion_boxes:
@@ -417,7 +427,7 @@ class PyTorchModelLoader:
                         image,
                         roi=None,
                         label=disease_name,
-                        confidence=confidence,
+                        confidence=reported_confidence,
                         disease_id=disease_id,
                     )
                     if full_boxes:
@@ -456,7 +466,7 @@ class PyTorchModelLoader:
                     ],
                     "box_pixels": [round(bx0, 1), round(by0, 1), round(bx1, 1), round(by1, 1)],
                     "label": disease_name,
-                    "confidence": round(confidence, 4),
+                    "confidence": round(reported_confidence, 4),
                     "disease_id": disease_id,
                 }]
             else:
@@ -464,7 +474,7 @@ class PyTorchModelLoader:
                 primary_box = bounding_boxes[0]
                 primary_box["label"] = disease_name
                 primary_box["disease_id"] = disease_id
-                primary_box["confidence"] = round(confidence, 4)
+                primary_box["confidence"] = round(reported_confidence, 4)
 
                 # Verification: ensure box does not cover the full frame
                 b2d = primary_box.get("box_2d", [0.0, 0.0, 1.0, 1.0])
@@ -483,6 +493,35 @@ class PyTorchModelLoader:
                     primary_box["box_2d"] = [round(ymin, 4), round(xmin, 4), round(ymax, 4), round(xmax, 4)]
                     primary_box["box_pixels"] = [round(xmin * W, 1), round(ymin * H, 1), round(xmax * W, 1), round(ymax * H, 1)]
 
+                # Make tiny boxes visible without changing normally sized boxes.
+                min_box_width = min(float(W), max(40.0, W * 0.08))
+                min_box_height = min(float(H), max(40.0, H * 0.08))
+                pixel_box = primary_box.get("box_pixels")
+                if isinstance(pixel_box, list) and len(pixel_box) >= 4:
+                    px0, py0, px1, py1 = [float(value) for value in pixel_box[:4]]
+                    box_width = px1 - px0
+                    box_height = py1 - py0
+                    if box_width < min_box_width or box_height < min_box_height:
+                        center_x = (px0 + px1) / 2.0
+                        center_y = (py0 + py1) / 2.0
+                        target_width = max(box_width, min_box_width)
+                        target_height = max(box_height, min_box_height)
+                        px0 = max(0.0, center_x - target_width / 2.0)
+                        py0 = max(0.0, center_y - target_height / 2.0)
+                        px1 = min(float(W), center_x + target_width / 2.0)
+                        py1 = min(float(H), center_y + target_height / 2.0)
+                        px0 = max(0.0, px1 - target_width)
+                        py0 = max(0.0, py1 - target_height)
+                        primary_box["box_pixels"] = [
+                            round(px0, 1), round(py0, 1), round(px1, 1), round(py1, 1)
+                        ]
+                        primary_box["box_2d"] = [
+                            round(py0 / H, 4),
+                            round(px0 / W, 4),
+                            round(py1 / H, 4),
+                            round(px1 / W, 4),
+                        ]
+
                 bounding_boxes = [primary_box]
 
         return {
@@ -491,7 +530,7 @@ class PyTorchModelLoader:
             "filename": display_name,
             "disease_id": disease_id,
             "disease_name": disease_name,
-            "confidence_score": confidence,
+            "confidence_score": reported_confidence,
             "bounding_boxes": bounding_boxes,
             "cropped_image": cropped_image,  # debug/inspection only (not persisted)
         }

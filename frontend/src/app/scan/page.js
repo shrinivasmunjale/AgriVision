@@ -541,8 +541,7 @@ export default function ScanPage() {
                         <AlertTriangle className="h-6 w-6 text-amber-400" />
                       </div>
                       <div>
-                        <h2 id="ignored-images-title" className="text-xl font-semibold text-text-primary">Some images were ignored</h2>
-                        <p className="mt-1 text-sm text-text-secondary">These images could not be analyzed reliably. Try a clear, well-lit tomato-leaf photo.</p>
+                        <h2 id="ignored-images-title" className="text-xl font-semibold text-text-primary">No tomato leaf detected. Please upload another clear image.</h2>
                       </div>
                     </div>
                     <button type="button" onClick={() => setIgnoredModalOpen(false)} className="rounded-lg p-1 text-text-secondary transition hover:bg-white/10 hover:text-text-primary" aria-label="Close ignored images message">

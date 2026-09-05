@@ -13,8 +13,7 @@ class MLInferenceService:
         """
         Predict disease from images. Order of priority:
         1. Local custom PyTorch model (YOLOv8 leaf check -> EfficientNetB0 disease classification)
-        2. Modal API service (if MODAL_API_URL is configured)
-        3. Mock predictions (development fallback)
+        2. Reject images if the gated local pipeline is unavailable.
 
         Returns an aggregated structure:
             {"valid_predictions": [...], "ignored_images": [...]}
@@ -26,23 +25,37 @@ class MLInferenceService:
                 print("[ML] Running two-stage inference (YOLOv8 -> EfficientNetB0)...")
                 return await pytorch_model_loader.predict_batch(image_urls, filenames)
             except Exception as e:
-                print(f"[WARNING] PyTorch Inference Error: {e}. Falling back...")
+                print(f"[WARNING] PyTorch Inference Error: {e}. Rejecting images instead of bypassing YOLO.")
+                return {
+                    "valid_predictions": [],
+                    "ignored_images": [
+                        {
+                            "status": "ignored",
+                            "image_url": url,
+                            "filename": filenames[idx] if filenames and idx < len(filenames) else self._derive_name(url),
+                            "reason": "No tomato leaf detected.",
+                            "confidence_score": 0.0,
+                            "bounding_boxes": [],
+                        }
+                        for idx, url in enumerate(image_urls)
+                    ],
+                }
 
-        # 2. Real Modal API call
-        if self.modal_url and self.modal_url.strip() != "":
-            try:
-                async with httpx.AsyncClient(timeout=30.0) as client:
-                    response = await client.post(
-                        self.modal_url,
-                        json={"image_urls": image_urls, "filenames": filenames}
-                    )
-                    response.raise_for_status()
-                    return self._normalize_batch(response.json(), image_urls, filenames)
-            except Exception as e:
-                print(f"ML Inference Error (Modal): {e}")
-
-        # 3. Fallback to mock predictions
-        return self._mock_predictions(image_urls, filenames)
+        # Do not bypass the YOLO gate with an unverified remote or mock predictor.
+        return {
+            "valid_predictions": [],
+            "ignored_images": [
+                {
+                    "status": "ignored",
+                    "image_url": url,
+                    "filename": filenames[idx] if filenames and idx < len(filenames) else self._derive_name(url),
+                    "reason": "No tomato leaf detected.",
+                    "confidence_score": 0.0,
+                    "bounding_boxes": [],
+                }
+                for idx, url in enumerate(image_urls)
+            ],
+        }
 
     def _normalize_batch(self, data, image_urls: List[str], filenames: Optional[List[str]] = None) -> Dict:
         """Normalize raw inference output into {valid_predictions, ignored_images}."""

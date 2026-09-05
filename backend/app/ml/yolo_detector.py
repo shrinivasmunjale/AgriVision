@@ -1,6 +1,5 @@
-import os
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Any, List, Optional, Tuple, cast
 from PIL import Image
 
 # Base directory paths
@@ -19,6 +18,17 @@ def _get_mywork_model_dir() -> Optional[Path]:
     return None
 
 MYWORK_MODEL_DIR = _get_mywork_model_dir()
+
+
+def _to_float_list(value: Any) -> List[float]:
+    """Convert a torch tensor, NumPy array, or sequence to Python floats."""
+    if hasattr(value, "detach"):
+        value = value.detach()
+    if hasattr(value, "cpu"):
+        value = value.cpu()
+    if hasattr(value, "tolist"):
+        value = value.tolist()
+    return [float(item) for item in value]
 
 # Candidate model paths for YOLOv8 (prioritize ML_DIR inside backend)
 YOLO_MODEL_CANDIDATES = [
@@ -75,7 +85,14 @@ class YOLOLeafDetector:
         self,
         image: Image.Image,
         conf_threshold: float = 0.30,
-    ) -> Tuple[bool, Optional[Image.Image], float, Optional[str]]:
+    ) -> Tuple[
+        bool,
+        Optional[Image.Image],
+        float,
+        Optional[str],
+        List[dict[str, Any]],
+        Optional[List[float]],
+    ]:
         """
         Detect tomato leaf in PIL Image and crop the detected region.
 
@@ -84,31 +101,36 @@ class YOLOLeafDetector:
                 has_leaf (bool),
                 cropped_image (Optional[Image.Image]),
                 leaf_confidence (float),
-                reason (Optional[str])  # set when no valid leaf is returned
+                reason (Optional[str])  # set when no valid leaf is returned,
+                bounding_boxes (List[dict]),
+                leaf_roi (Optional[List[float]])
             ]
         """
         if not self.is_ready or self.model is None:
-            # Do not silently pass the complete image to EfficientNet if YOLO is unavailable
-            return True, image, 0.50, None, [{
-                "box_2d": [0.08, 0.08, 0.92, 0.92],
-                "box_pixels": [0, 0, image.width, image.height],
-                "label": "Leaf Region",
-                "confidence": 0.50,
-                "disease_id": None
-            }], None
+            return False, None, 0.0, "YOLO leaf detector is unavailable.", [], None
 
         try:
             # Run YOLO detection.
             # Run at a lower internal confidence so candidate boxes survive.
             internal_conf = min(conf_threshold, 0.15)
-            results = self.model(image, conf=internal_conf, verbose=False)
-            
-            all_boxes = []
-            infected_boxes = []  # Only diseased regions (non-healthy)
-            width, height = image.size
+            # Ultralytics' type stubs allow an iterator, list, or tensor here.
+            # Materializing the result gives us a safely indexable collection.
+            raw_results = self.model(image, conf=internal_conf, verbose=False)
+            results = list(cast(Any, raw_results))
 
-            if results and len(results) > 0 and results[0].boxes is not None and len(results[0].boxes) > 0:
-                boxes = results[0].boxes
+            all_boxes: List[dict[str, Any]] = []
+            infected_boxes: List[dict[str, Any]] = []  # Only diseased regions (non-healthy)
+            width, height = image.size
+            best_conf = 0.0
+            boxes: Any = None
+
+            if results:
+                # A tensor result is not a detection Results object and has no
+                # .boxes attribute. Treat it as no valid leaf detection.
+                result = results[0]
+                boxes = getattr(result, "boxes", None)
+
+            if results and boxes is not None and len(boxes) > 0:
                 try:
                     for b in boxes:
                         conf = float(b.conf[0].item() if hasattr(b.conf[0], 'item') else b.conf[0])
@@ -140,7 +162,7 @@ class YOLOLeafDetector:
                         }
                         d_id = disease_map.get(clean_label.lower(), cls_id + 1)
 
-                        box_arr = b.xyxy[0].cpu().tolist() if hasattr(b.xyxy[0], 'cpu') else list(b.xyxy[0])
+                        box_arr = _to_float_list(b.xyxy[0])
                         b_xmin, b_ymin, b_xmax, b_ymax = [max(0.0, float(v)) for v in box_arr]
                         
                         norm_ymin = max(0.0, min(1.0, round(b_ymin / height, 4)))
@@ -173,17 +195,17 @@ class YOLOLeafDetector:
 
                 # If candidate boxes exist, select best
                 try:
-                    conf_tensor = boxes.conf.cpu()
-                    best_idx = int(conf_tensor.argmax().item())
-                    best_conf = float(conf_tensor[best_idx].item())
-                    best_box_tensor = boxes.xyxy[best_idx].cpu()
-                    xmin, ymin, xmax, ymax = map(int, best_box_tensor.tolist())
-                except Exception:
-                    confidences = boxes.conf.cpu().numpy()
-                    best_idx = int(confidences.argmax())
-                    best_conf = float(confidences[best_idx])
-                    best_box = boxes.xyxy[best_idx].cpu().numpy()
+                    confidences = _to_float_list(boxes.conf)
+                    best_idx = max(
+                        range(len(confidences)),
+                        key=lambda index: confidences[index],
+                    )
+                    best_conf = confidences[best_idx]
+                    best_box = _to_float_list(boxes.xyxy[best_idx])
                     xmin, ymin, xmax, ymax = map(int, best_box)
+                except (IndexError, TypeError, ValueError):
+                    best_conf = 0.0
+                    xmin = ymin = xmax = ymax = 0
 
                 if best_conf >= conf_threshold:
                     box_w = xmax - xmin
@@ -196,11 +218,11 @@ class YOLOLeafDetector:
                     # would spill into the background and recreate whole-frame boxes).
                     roi_pad_x = max(4, int(box_w * 0.03))
                     roi_pad_y = max(4, int(box_h * 0.03))
-                    leaf_roi = [
-                        max(0, xmin - roi_pad_x),
-                        max(0, ymin - roi_pad_y),
-                        min(width, xmax + roi_pad_x),
-                        min(height, ymax + roi_pad_y),
+                    leaf_roi: List[float] = [
+                        float(max(0, xmin - roi_pad_x)),
+                        float(max(0, ymin - roi_pad_y)),
+                        float(min(width, xmax + roi_pad_x)),
+                        float(min(height, ymax + roi_pad_y)),
                     ]
 
                     xmin = max(0, xmin - pad_x)
@@ -215,42 +237,19 @@ class YOLOLeafDetector:
                         print(f"[YOLO DEBUG] Returning {len(boxes_to_return)} boxes to frontend (roi={leaf_roi})")
                         return True, cropped_image, best_conf, None, boxes_to_return, leaf_roi
 
-            # If no localized box or low YOLO confidence (e.g. direct full-frame leaf image),
-            # fall back gracefully to the full image so EfficientNet can classify it.
-            # Return infected boxes if available, otherwise fallback box
-            if infected_boxes:
-                print(f"[YOLO DEBUG] No crop, but returning {len(infected_boxes)} infected boxes")
-                return True, image, 0.70, None, infected_boxes, None
-            
-            print(f"[YOLO DEBUG] No infected boxes found, returning fallback box")
-            fallback_box = [{
-                "box_2d": [0.20, 0.20, 0.80, 0.80],
-                "box_pixels": [round(width * 0.20, 1), round(height * 0.20, 1), round(width * 0.80, 1), round(height * 0.80, 1)],
-                "label": "Leaf",
-                "confidence": 0.70,
-                "disease_id": None
-            }]
-            return True, image, 0.70, None, (all_boxes if all_boxes else fallback_box), None
+            print("[YOLO DEBUG] No tomato leaf detected above the confidence threshold")
+            return False, None, best_conf, "No tomato leaf detected.", all_boxes, None
 
         except Exception as e:
             print(f"[WARNING] Error during YOLO leaf detection: {e}.")
-            # Fallback to full image so inference is not blocked
-            width, height = image.size
-            fallback_box = [{
-                "box_2d": [0.20, 0.20, 0.80, 0.80],
-                "box_pixels": [round(width * 0.20, 1), round(height * 0.20, 1), round(width * 0.80, 1), round(height * 0.80, 1)],
-                "label": "Leaf",
-                "confidence": 0.70,
-                "disease_id": None
-            }]
-            return True, image, 0.70, None, fallback_box, None
+            return False, None, 0.0, "No tomato leaf detected.", [], None
 
-    def detect_and_crop(self, image: Image.Image, conf_threshold: float = 0.30) -> Image.Image:
+    def detect_and_crop(self, image: Image.Image, conf_threshold: float = 0.30) -> Optional[Image.Image]:
         """Backward compatibility wrapper method."""
         res = self.detect_leaf(image, conf_threshold)
         has_leaf = res[0]
         cropped_img = res[1]
-        return cropped_img if (has_leaf and cropped_img is not None) else image
+        return cropped_img if (has_leaf and cropped_img is not None) else None
 
 
 yolo_leaf_detector = YOLOLeafDetector()
