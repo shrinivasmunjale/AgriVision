@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { predictionsAPI } from '@/lib/api'
+import { compressImages } from '@/lib/imageCompressor'
 import Layout from '@/components/Layout'
 import { Upload, X, Loader, AlertTriangle, Camera as CameraIcon, Sparkles, Leaf, Download, ExternalLink } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -19,6 +20,8 @@ export default function ScanPage() {
   const { t } = useI18n()
   const [files, setFiles] = useState([])
   const [previews, setPreviews] = useState([])
+  const [compressing, setCompressing] = useState(false)
+  const [compressProgress, setCompressProgress] = useState({ current: 0, total: 0 })
   const [uploading, setUploading] = useState(false)
   const [analyzing, setAnalyzing] = useState(false)
   const [error, setError] = useState('')
@@ -98,15 +101,27 @@ export default function ScanPage() {
   const handleAnalyze = async () => {
     if (files.length === 0) return
 
-    setUploading(true)
+    setCompressing(true)
+    setCompressProgress({ current: 0, total: files.length })
     setError('')
     setResults(null)
 
     try {
       const token = await getAccessToken()
 
+      // 1. Client-Side Image Compression & Optimization
+      const preparedFiles = await compressImages(
+        files,
+        {},
+        (current, total) => setCompressProgress({ current, total })
+      )
+
+      setCompressing(false)
+      setUploading(true)
+
+      // 2. Upload Compressed Images to Backend
       const formData = new FormData()
-      files.forEach((file) => {
+      preparedFiles.forEach((file) => {
         formData.append('files', file)
       })
 
@@ -116,10 +131,11 @@ export default function ScanPage() {
       setUploading(false)
       setAnalyzing(true)
 
+      // 3. AI Leaf Detection (YOLOv8) & Disease Classification (EfficientNet)
       const analyzeResponse = await predictionsAPI.analyze(
         {
           image_urls: imageUrls,
-          filenames: files.map((f) => f.name || 'image'),
+          filenames: preparedFiles.map((f) => f.name || 'image'),
         },
         token
       )
@@ -138,6 +154,7 @@ export default function ScanPage() {
       await queryClient.invalidateQueries({ queryKey: ['all-predictions'] })
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to analyze images')
+      setCompressing(false)
       setUploading(false)
       setAnalyzing(false)
     }
@@ -213,7 +230,7 @@ export default function ScanPage() {
               accept="image/*"
               onChange={(e) => handleFileSelect(e.target.files)}
               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-              disabled={uploading || analyzing}
+              disabled={compressing || uploading || analyzing}
             />
             <Upload className="w-16 h-16 text-text-secondary mx-auto mb-4" />
             <p className="text-text-primary font-semibold mb-2">
@@ -236,11 +253,11 @@ export default function ScanPage() {
               capture="environment"
               onChange={(e) => handleFileSelect(e.target.files)}
               className="hidden"
-              disabled={uploading || analyzing}
+              disabled={compressing || uploading || analyzing}
             />
             <button
               onClick={() => cameraInputRef.current?.click()}
-              disabled={uploading || analyzing}
+              disabled={compressing || uploading || analyzing}
               className="inline-flex items-center gap-2 px-5 py-2.5 bg-surface-card border border-border-subtle rounded-full font-semibold text-text-primary hover:border-primary-400/50 transition-colors disabled:opacity-50"
             >
               <CameraIcon className="w-5 h-5 text-primary-400" />
@@ -275,7 +292,8 @@ export default function ScanPage() {
                       />
                       <button
                         onClick={() => removeFile(index)}
-                        className="absolute top-2 right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
+                        disabled={compressing || uploading || analyzing}
+                        className="absolute top-2 right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg disabled:hidden"
                       >
                         <X className="w-4 h-4" />
                       </button>
@@ -303,13 +321,22 @@ export default function ScanPage() {
                 )}
               </AnimatePresence>
 
-              {/* Redesigned Premium "Analyze Plant Health" Button */}
+              {/* Redesigned Premium "Analyze Plant Health" Button with 3-stage progress */}
               <button
                 onClick={handleAnalyze}
-                disabled={uploading || analyzing || files.length === 0}
+                disabled={compressing || uploading || analyzing || files.length === 0}
                 className="w-full py-4.5 px-8 bg-gradient-to-r from-emerald-500 via-primary-400 to-green-600 hover:from-emerald-400 hover:to-green-500 text-white rounded-2xl font-bold text-lg shadow-xl shadow-emerald-500/20 hover:shadow-emerald-500/35 hover:scale-[1.01] active:scale-[0.99] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-3 border border-emerald-400/30"
               >
-                {uploading ? (
+                {compressing ? (
+                  <>
+                    <Loader className="w-6 h-6 animate-spin" />
+                    <span>
+                      {compressProgress.total > 1
+                        ? `Compressing Images (${compressProgress.current}/${compressProgress.total})...`
+                        : 'Compressing Image...'}
+                    </span>
+                  </>
+                ) : uploading ? (
                   <>
                     <Loader className="w-6 h-6 animate-spin" />
                     <span>Uploading Images...</span>
@@ -321,9 +348,7 @@ export default function ScanPage() {
                   </>
                 ) : (
                   <>
-                    {/* <Sparkles className="w-6 h-6 text-emerald-100 animate-pulse" /> */}
                     <span>{t('scan.analyze')}</span>
-                    {/* <Leaf className="w-5 h-5 text-emerald-100" /> */}
                   </>
                 )}
               </button>
