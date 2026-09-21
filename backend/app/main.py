@@ -177,3 +177,5 @@ async def health():
         "version": "2.0.1",
         "deployed_at": "2026-09-04",
     }
+
+    print("===== AGRIVISION DEPLOYMENT TEST: 2026-09-21 =====")
