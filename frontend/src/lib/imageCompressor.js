@@ -34,17 +34,32 @@ const DEFAULT_OPTIONS = {
 }
 
 /**
- * Compresses and resizes a single image file for AI leaf detection and disease analysis.
+ * Computes a short SHA-256 hash prefix of a File for diagnostic consistency tracking.
+ * @param {File} file 
+ * @returns {Promise<string>}
+ */
+const computeFileHash = async (file) => {
+  try {
+    const arrayBuffer = await file.arrayBuffer()
+    const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer)
+    const hashArray = Array.from(new Uint8Array(hashBuffer))
+    return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('').slice(0, 16)
+  } catch {
+    return 'unavailable'
+  }
+}
+
+/**
+ * Compresses, reorients, and normalizes a single image file for AI leaf detection and disease analysis.
  * 
- * - Skips compression if image is already <= 1024x1024 AND < 500 KB.
- * - Maintains aspect ratio.
+ * - Ensures all platforms (Android Chrome, iOS Safari, desktop) produce consistent, upright JPEG images.
+ * - Bakes EXIF orientation into pixels via canvas processing.
  * - Normalizes output to standard JPEG at 80% quality.
- * - Handles EXIF orientation automatically.
  * - Returns a standard File object with preserved filename.
  * 
  * @param {File} file - Original File from input/camera
  * @param {Object} [customOptions] - Optional overrides
- * @returns {Promise<File>} Compressed File object ready for FormData
+ * @returns {Promise<File>} Compressed and orientation-normalized File object ready for FormData
  */
 export async function compressImage(file, customOptions = {}) {
   // If not an image file, return as-is
@@ -52,21 +67,16 @@ export async function compressImage(file, customOptions = {}) {
     return file
   }
 
-  try {
-    // Condition: If image is <= 500KB and <= 1024x1024, pass through without recompressing
-    const MAX_SKIP_BYTES = 500 * 1024 // 500 KB
-    const MAX_SKIP_DIM = 1024         // 1024px
+  let origWidth = null
+  let origHeight = null
 
-    if (file.size <= MAX_SKIP_BYTES) {
-      try {
-        const { width, height } = await getImageDimensions(file)
-        if (width <= MAX_SKIP_DIM && height <= MAX_SKIP_DIM) {
-          return file
-        }
-      } catch (dimErr) {
-        // If dimension read fails, continue to standard compression
-        console.warn('Could not read image dimensions, proceeding with compression:', dimErr)
-      }
+  try {
+    try {
+      const dims = await getImageDimensions(file)
+      origWidth = dims.width
+      origHeight = dims.height
+    } catch {
+      // ignore dimension read failure
     }
 
     const options = {
@@ -74,20 +84,34 @@ export async function compressImage(file, customOptions = {}) {
       ...customOptions,
     }
 
-    // Perform WebWorker-based canvas resize + EXIF auto-rotation + JPEG encoding
+    // Perform canvas resize + EXIF auto-rotation + standard JPEG encoding
     const compressedBlob = await imageCompression(file, options)
 
     // Ensure output file has .jpg / .jpeg extension
     const baseName = file.name.replace(/\.[^/.]+$/, '')
     const newFileName = `${baseName}.jpg`
 
-    // Return a standard File instance for direct FormData appending
-    return new File([compressedBlob], newFileName, {
+    const processedFile = new File([compressedBlob], newFileName, {
       type: 'image/jpeg',
       lastModified: Date.now(),
     })
+
+    // Diagnostic logging for cross-device consistency verification
+    try {
+      const processedDims = await getImageDimensions(processedFile)
+      const processedHash = await computeFileHash(processedFile)
+      console.log(
+        `[IMG-DIAGNOSTIC-FRONTEND] Original: (${origWidth}x${origHeight}, ${(file.size / 1024).toFixed(1)}KB, ${file.type}) -> ` +
+        `Processed: (${processedDims.width}x${processedDims.height}, ${(processedFile.size / 1024).toFixed(1)}KB, image/jpeg, hash16=${processedHash})`
+      )
+    } catch (logErr) {
+      // Non-blocking diagnostic logging
+    }
+
+    // Return a standard File instance for direct FormData appending
+    return processedFile
   } catch (error) {
-    console.error(`Failed to compress image "${file.name}":`, error)
+    console.error(`Failed to compress/normalize image "${file.name}":`, error)
     // Fallback: return original file so the user upload does not fail
     return file
   }

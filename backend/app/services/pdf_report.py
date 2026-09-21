@@ -9,7 +9,7 @@ from datetime import datetime
 from typing import Dict, List, Optional
 from pathlib import Path
 import httpx
-from PIL import Image as PILImage
+from PIL import Image as PILImage, ImageOps
 
 class PDFReportGenerator:
     def __init__(self):
@@ -65,11 +65,13 @@ class PDFReportGenerator:
 
         try:
             if img_path and img_path.exists():
-                pil_img = PILImage.open(img_path).convert("RGB")
+                raw_img = PILImage.open(img_path)
+                pil_img = ImageOps.exif_transpose(raw_img).convert("RGB")
             elif path_str.startswith("http://") or path_str.startswith("https://"):
                 resp = httpx.get(path_str, timeout=5.0)
                 resp.raise_for_status()
-                pil_img = PILImage.open(BytesIO(resp.content)).convert("RGB")
+                raw_img = PILImage.open(BytesIO(resp.content))
+                pil_img = ImageOps.exif_transpose(raw_img).convert("RGB")
             else:
                 return None
 

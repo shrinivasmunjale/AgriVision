@@ -4,7 +4,9 @@ import io
 import httpx
 from pathlib import Path
 from typing import List, Dict, Optional, Tuple
-from PIL import Image
+from PIL import Image, ImageOps
+import hashlib
+from app.core.config import settings
 
 # Base directory for ML artifacts
 ML_DIR = Path(__file__).resolve().parent
@@ -247,9 +249,39 @@ class PyTorchModelLoader:
         """Return True if PyTorch is installed and model is loaded."""
         return self.is_torch_available and self.model is not None
 
+    @staticmethod
+    def _safe_load_image(source) -> Image.Image:
+        """
+        Safely open PIL image, apply EXIF orientation transpose to ensure the image
+        is oriented upright across all devices (Android, iOS Safari, desktop),
+        and convert to RGB format.
+        """
+        if isinstance(source, (str, Path)):
+            raw_img = Image.open(source)
+        else:
+            raw_img = Image.open(io.BytesIO(source))
+
+        # Check EXIF orientation metadata for diagnostic tracking
+        exif = raw_img.getexif() if hasattr(raw_img, "getexif") else None
+        orientation_tag = exif.get(0x0112) if exif else None
+
+        # Transpose according to EXIF orientation tag
+        transposed_img = ImageOps.exif_transpose(raw_img)
+        rgb_img = transposed_img.convert("RGB")
+
+        try:
+            h = hashlib.sha256(rgb_img.tobytes()).hexdigest()[:16]
+            print(
+                f"[IMG-DIAGNOSTIC-BACKEND] Loaded image: size={rgb_img.size}, "
+                f"mode={rgb_img.mode}, EXIF_orientation={orientation_tag}, pixel_hash16={h}"
+            )
+        except Exception:
+            pass
+
+        return rgb_img
+
     async def _fetch_image(self, image_url: str):
         """Download image bytes from HTTP URL or load directly from disk if local path."""
-        from PIL import Image
         from urllib.parse import unquote
 
         raw_url = str(image_url).strip()
@@ -266,13 +298,13 @@ class PyTorchModelLoader:
             for cand in candidates:
                 if cand.exists():
                     print(f"[ML] Loaded image directly from disk: {cand}")
-                    return Image.open(cand).convert("RGB")
+                    return self._safe_load_image(cand)
 
         # 2. Check if path_str is a direct local file path
         if not (path_str.startswith("http://") or path_str.startswith("https://")):
             p = Path(path_str)
             if p.exists():
-                return Image.open(p).convert("RGB")
+                return self._safe_load_image(p)
 
         # 3. HTTP download with fallback
         try:
@@ -280,13 +312,13 @@ class PyTorchModelLoader:
                 resp = await client.get(raw_url)
                 resp.raise_for_status()
                 image_bytes = resp.content
-            return Image.open(io.BytesIO(image_bytes)).convert("RGB")
+            return self._safe_load_image(image_bytes)
         except Exception as e:
             print(f"[WARNING] Remote fetch failed for {raw_url} ({e}). Checking local uploads fallback...")
             filename = path_str.split("/")[-1]
             for cand in [Path("uploads") / filename, Path("backend/uploads") / filename]:
                 if cand.exists():
-                    return Image.open(cand).convert("RGB")
+                    return self._safe_load_image(cand)
             raise e
 
     async def predict_image(self, image_url: str, filename: Optional[str] = None) -> Dict:
@@ -327,6 +359,10 @@ class PyTorchModelLoader:
             has_leaf, cropped_image, leaf_conf, leaf_reason = res[0], res[1], res[2], res[3]
             bounding_boxes = res[4] if len(res) > 4 else []
             leaf_roi = res[5] if len(res) > 5 else None
+            print(
+                f"[IMG-DIAGNOSTIC-BACKEND] YOLO Gate: has_leaf={has_leaf}, "
+                f"best_conf={leaf_conf:.4f}, boxes_count={len(bounding_boxes)}, leaf_roi={leaf_roi}"
+            )
         except Exception as e:
             print(f"[WARNING] YOLO leaf detection error: {e}")
             has_leaf, cropped_image, leaf_conf, leaf_reason, bounding_boxes, leaf_roi = (
@@ -362,31 +398,56 @@ class PyTorchModelLoader:
         if not isinstance(cropped_image, Image.Image):
             cropped_image = Image.fromarray(cropped_image)
         
-        input_tensor = self.transform(cropped_image)
-        if not isinstance(input_tensor, torch.Tensor):
-            input_tensor = torch.tensor(input_tensor)
-        input_tensor = input_tensor.unsqueeze(0).to(self.device)
+        crop_tensor = self.transform(cropped_image).unsqueeze(0).to(self.device)
+        full_tensor = self.transform(image).unsqueeze(0).to(self.device)
 
         with torch.no_grad():
-            outputs = self.model(input_tensor)
+            crop_out = self.model(crop_tensor)
+            if isinstance(crop_out, dict):
+                crop_out = crop_out.get("out", crop_out.get("logits", crop_out))
+            elif isinstance(crop_out, (tuple, list)):
+                crop_out = crop_out[0]
+            crop_probs = torch.softmax(crop_out, dim=1)
+            crop_top_prob, crop_top_catid = torch.topk(crop_probs, 1)
 
-            if isinstance(outputs, dict):
-                outputs = outputs.get("out", outputs.get("logits", outputs))
-            elif isinstance(outputs, (tuple, list)):
-                outputs = outputs[0]
+            full_out = self.model(full_tensor)
+            if isinstance(full_out, dict):
+                full_out = full_out.get("out", full_out.get("logits", full_out))
+            elif isinstance(full_out, (tuple, list)):
+                full_out = full_out[0]
+            full_probs = torch.softmax(full_out, dim=1)
+            full_top_prob, full_top_catid = torch.topk(full_probs, 1)
 
-            probabilities = torch.softmax(outputs, dim=1)
-            top_prob, top_catid = torch.topk(probabilities, 1)
+            crop_conf = float(crop_top_prob.item())
+            full_conf = float(full_top_prob.item())
 
-            class_idx = str(top_catid.item())
-            confidence = round(float(top_prob.item()), 4)
+            # Select best context representation (full frame vs tight leaf crop)
+            if full_conf >= crop_conf:
+                class_idx = str(full_top_catid.item())
+                confidence = round(full_conf, 4)
+                context_used = "full_frame"
+            else:
+                class_idx = str(crop_top_catid.item())
+                confidence = round(crop_conf, 4)
+                context_used = "leaf_crop"
 
-        # Ignore predictions below 60% confidence. For accepted predictions in
-        # the 61%-85% range, expose a normalized confidence of 85%.
-        if confidence < 0.60:
+        # Look up disease info in labels.json
+        label_info = self.labels.get(class_idx, {})
+        disease_id = label_info.get("disease_id", int(class_idx) if class_idx.isdigit() else None)
+        disease_name = label_info.get("name", f"Class {class_idx}")
+
+        print(
+            f"[IMG-DIAGNOSTIC-BACKEND] EfficientNet ({context_used}): predicted_class={disease_name} (id={disease_id}), "
+            f"confidence={confidence:.4f} (crop_conf={crop_conf:.4f}, full_conf={full_conf:.4f})"
+        )
+
+        min_threshold = getattr(settings, "CONFIDENCE_THRESHOLD", 0.50)
+
+        # Ignore predictions below threshold (e.g. 50%)
+        if confidence < min_threshold:
             return {
                 "status": "ignored",
-                "reason": "Disease confidence below 60%",
+                "reason": f"Disease confidence below {int(min_threshold * 100)}%",
                 "image_url": image_url,
                 "filename": display_name,
                 "confidence_score": confidence,
@@ -394,9 +455,6 @@ class PyTorchModelLoader:
             }
 
         reported_confidence = 0.85 if confidence <= 0.85 else confidence
-
-        # Look up disease info in labels.json
-        label_info = self.labels.get(class_idx, {})
         disease_id = label_info.get("disease_id", int(class_idx) if class_idx.isdigit() else None)
         disease_name = label_info.get("name", f"Class {class_idx}")
 
