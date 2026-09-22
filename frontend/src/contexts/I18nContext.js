@@ -287,91 +287,160 @@ const translations = {
   },
 }
 
+const setGoogleTranslateCookie = (langCode) => {
+  if (typeof document === 'undefined') return
+  try {
+    const isEn = !langCode || langCode === 'en'
+    const target = isEn ? 'en' : langCode
+    const cookieVal = `/en/${target}`
+    const autoVal = `/auto/${target}`
+
+    const host = window.location.hostname
+    const isLocalOrIp = !host || host === 'localhost' || host === '127.0.0.1' || /^\d+\.\d+\.\d+\.\d+$/.test(host)
+
+    const domains = [null]
+    if (!isLocalOrIp) {
+      domains.push(host)
+      domains.push(`.${host}`)
+      const parts = host.split('.')
+      if (parts.length > 2) {
+        domains.push(`.${parts.slice(-2).join('.')}`)
+      }
+    }
+
+    domains.forEach((d) => {
+      const dAttr = d ? `; domain=${d}` : ''
+      document.cookie = `googtrans=${cookieVal}; path=/${dAttr}; max-age=31536000`
+      document.cookie = `googtrans=${autoVal}; path=/${dAttr}; max-age=31536000`
+    })
+
+    if (isEn) {
+      domains.forEach((d) => {
+        const dAttr = d ? `; domain=${d}` : ''
+        document.cookie = `googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/${dAttr}`
+      })
+    }
+  } catch (err) {
+    console.warn('Failed to set Google Translate cookie:', err)
+  }
+}
+
+const triggerGoogleTranslateCombo = (langCode) => {
+  if (typeof document === 'undefined') return false
+  try {
+    const select = document.querySelector('.goog-te-combo') || document.querySelector('#google_translate_element select')
+    if (select) {
+      const targetVal = !langCode || langCode === 'en' ? '' : langCode
+      if (select.value === targetVal) {
+        return true
+      }
+      const valueSetter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value')?.set
+      if (valueSetter) {
+        valueSetter.call(select, targetVal)
+      } else {
+        select.value = targetVal
+      }
+      select.dispatchEvent(new Event('change', { bubbles: true }))
+      return true
+    }
+  } catch (err) {
+    console.warn('Error triggering Google Translate combo:', err)
+  }
+  return false
+}
+
 export const I18nProvider = ({ children }) => {
   const [lang, setLangState] = useState('en')
 
   useEffect(() => {
-    const stored = localStorage.getItem('agrivision_lang')
+    let stored = 'en'
+    try {
+      stored = localStorage.getItem('agrivision_lang') || 'en'
+    } catch (e) {}
+
     if (stored) {
       setLangState(stored)
-      applyGoogleTranslateCookie(stored)
+      setGoogleTranslateCookie(stored)
     }
-    loadGoogleTranslateScript()
+    loadGoogleTranslateScript(stored)
   }, [])
 
-  const applyGoogleTranslateCookie = (l, attempt = 0) => {
+  const loadGoogleTranslateScript = (initialLang = 'en') => {
     if (typeof window === 'undefined') return
-    try {
-      const targetLang = l === 'en' ? '' : l
-      const cookieValue = targetLang ? `/en/${targetLang}` : '/en/en'
-      
-      // Set cookie for current domain and paths
-      document.cookie = `googtrans=${cookieValue}; path=/`
-      document.cookie = `googtrans=${cookieValue}; domain=.${window.location.hostname}; path=/`
-      document.cookie = `googtrans=${cookieValue}; domain=${window.location.hostname}; path=/`
-      
-      // Dispatch change event to trigger Google Translate widget if loaded
-      const select = document.querySelector('.goog-te-combo')
-      if (select) {
-        const valueSetter = Object.getOwnPropertyDescriptor(
-          HTMLSelectElement.prototype,
-          'value'
-        )?.set
-        valueSetter?.call(select, targetLang)
-        select.dispatchEvent(new Event('change', { bubbles: true }))
-      } else if (attempt < 100) {
-        window.setTimeout(() => applyGoogleTranslateCookie(l, attempt + 1), 100)
-      }
-    } catch (e) {
-      console.warn('Google Translate Cookie error:', e)
-    }
-  }
-
-  const loadGoogleTranslateScript = () => {
-    if (typeof window === 'undefined') return
-    if (document.getElementById('google-translate-script')) return
-
-    // Inject CSS to force-hide top bar
-    const style = document.createElement('style')
-    style.innerHTML = `
-      .goog-te-banner-frame, iframe.goog-te-banner-frame, .skiptranslate.goog-te-banner-frame, body > .skiptranslate, #goog-gt-tt {
-        display: none !important;
-        visibility: hidden !important;
-        height: 0 !important;
-        width: 0 !important;
-      }
-      body { top: 0px !important; position: static !important; }
-    `
-    document.head.appendChild(style)
 
     window.googleTranslateElementInit = () => {
-      new window.google.translate.TranslateElement(
-        {
-          pageLanguage: 'en',
-          includedLanguages: 'hi,mr,te,ta,bn,gu,kn,ml,pa,or,en',
-          autoDisplay: false,
-          layout: window.google.translate.TranslateElement.InlineLayout.SIMPLE
-        },
-        'google_translate_element'
-      )
-      applyGoogleTranslateCookie(localStorage.getItem('agrivision_lang') || 'en')
+      try {
+        if (window.google?.translate?.TranslateElement) {
+          new window.google.translate.TranslateElement(
+            {
+              pageLanguage: 'en',
+              includedLanguages: 'hi,mr,te,ta,bn,gu,kn,ml,pa,or,en',
+              autoDisplay: false,
+              layout: window.google.translate.TranslateElement.InlineLayout.SIMPLE,
+            },
+            'google_translate_element'
+          )
+        }
+
+        const target = initialLang || localStorage.getItem('agrivision_lang') || 'en'
+        setGoogleTranslateCookie(target)
+
+        let attempts = 0
+        const pollCombo = setInterval(() => {
+          attempts++
+          if (triggerGoogleTranslateCombo(target) || attempts > 40) {
+            clearInterval(pollCombo)
+          }
+        }, 100)
+      } catch (e) {
+        console.error('Google Translate init error:', e)
+      }
     }
 
-    const script = document.createElement('script')
-    script.id = 'google-translate-script'
-    script.src = '//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit'
-    script.async = true
-    document.body.appendChild(script)
+    if (!document.getElementById('google-translate-script')) {
+      const script = document.createElement('script')
+      script.id = 'google-translate-script'
+      script.src = 'https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit'
+      script.async = true
+      document.body.appendChild(script)
+    } else if (window.google?.translate?.TranslateElement) {
+      window.googleTranslateElementInit()
+    }
   }
 
   const setLang = (l) => {
     if (l === lang) return
+    const prevLang = lang
     setLangState(l)
-    localStorage.setItem('agrivision_lang', l)
-    applyGoogleTranslateCookie(l)
+    try {
+      localStorage.setItem('agrivision_lang', l)
+    } catch (e) {}
 
-    // Google Translate applies its cookie during document initialization.
-    window.setTimeout(() => window.location.reload(), 50)
+    setGoogleTranslateCookie(l)
+
+    const applied = triggerGoogleTranslateCombo(l)
+    if (!applied) {
+      let count = 0
+      const interval = setInterval(() => {
+        count++
+        if (triggerGoogleTranslateCombo(l) || count > 20) {
+          clearInterval(interval)
+          // If still couldn't find combo after 2 seconds or reverting to English, reload cleanly
+          if (count > 20 && (l === 'en' || prevLang !== 'en')) {
+            window.location.reload()
+          }
+        }
+      }, 100)
+    } else if (l === 'en' && prevLang !== 'en') {
+      // When reverting from a translated language to English, trigger reload if DOM doesn't revert
+      window.setTimeout(() => {
+        const hasTranslatedClass = document.documentElement.classList.contains('translated-ltr') ||
+          document.documentElement.classList.contains('translated-rtl')
+        if (hasTranslatedClass && document.querySelector('.goog-te-combo')?.value !== '') {
+          window.location.reload()
+        }
+      }, 300)
+    }
   }
 
   const t = (key) => {
@@ -381,7 +450,7 @@ export const I18nProvider = ({ children }) => {
 
   return (
     <I18nContext.Provider value={{ lang, t, setLang, languages: INDIAN_LANGUAGES }}>
-      <div id="google_translate_element" style={{ display: 'none' }} />
+      <div id="google_translate_element" aria-hidden="true" />
       {children}
     </I18nContext.Provider>
   )
