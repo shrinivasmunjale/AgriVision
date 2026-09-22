@@ -4,9 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional, List
 
 from app.db.session import get_db
-from app.api.deps import get_current_user
 from app.models.evidence_recommendation import DiseaseRecommendation
-from app.models.user import User
 
 router = APIRouter()
 
@@ -167,7 +165,6 @@ async def get_evidence_recommendations(model_class: str | None, db: Optional[Asy
 @router.get("/{model_class}")
 async def get_recommendations(
     model_class: str,
-    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     resolved_class = model_class if model_class in EXACT_MODEL_CLASSES else model_class_for_name(model_class)
