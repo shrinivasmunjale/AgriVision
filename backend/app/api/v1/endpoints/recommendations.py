@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Optional, List
 
 from app.db.session import get_db
 from app.api.deps import get_current_user
@@ -96,23 +97,71 @@ def serialize_recommendation(record: DiseaseRecommendation) -> dict:
             "document": record.source_document,
             "url": record.source_url,
             "evidence_note": record.evidence_note,
-            "verified_date": record.verified_date,
+            "verified_date": str(record.verified_date) if record.verified_date else None,
         },
     }
 
 
-async def get_evidence_recommendations(model_class: str | None, db: AsyncSession) -> list[dict]:
+def serialize_static_record(idx: int, values: dict) -> dict:
+    return {
+        "id": idx,
+        "type": values.get("recommendation_type"),
+        "active_ingredient": values.get("active_ingredient"),
+        "formulation": values.get("formulation"),
+        "dose": values.get("dose"),
+        "dose_unit": values.get("dose_unit"),
+        "water_volume": values.get("water_volume"),
+        "application_method": values.get("application_method"),
+        "crop_stage": values.get("crop_stage"),
+        "frequency": values.get("frequency"),
+        "pre_harvest_interval": values.get("pre_harvest_interval"),
+        "re_entry_period": values.get("re_entry_period"),
+        "source": {
+            "organization": values.get("source_organization"),
+            "source_type": values.get("source_type"),
+            "document": values.get("source_document"),
+            "url": values.get("source_url"),
+            "evidence_note": values.get("evidence_note"),
+            "verified_date": str(values.get("verified_date")) if values.get("verified_date") else None,
+        },
+    }
+
+
+async def get_evidence_recommendations(model_class: str | None, db: Optional[AsyncSession] = None) -> list[dict]:
     if not model_class:
         return []
-    result = await db.execute(
-        select(DiseaseRecommendation)
-        .where(
-            DiseaseRecommendation.model_class == model_class,
-            DiseaseRecommendation.is_active.is_(True),
-        )
-        .order_by(DiseaseRecommendation.id)
-    )
-    return [serialize_recommendation(record) for record in result.scalars().all()]
+
+    records = []
+    if db is not None:
+        try:
+            result = await db.execute(
+                select(DiseaseRecommendation)
+                .where(
+                    DiseaseRecommendation.model_class == model_class,
+                    DiseaseRecommendation.is_active.is_(True),
+                )
+                .order_by(DiseaseRecommendation.id)
+            )
+            records = [serialize_recommendation(record) for record in result.scalars().all()]
+        except Exception as db_err:
+            print(f"[WARNING] Database error querying DiseaseRecommendation: {db_err}")
+            records = []
+
+    # If database returned 0 rows (e.g. cold start, delayed migration), use in-memory curated knowledge
+    if not records:
+        try:
+            from seed_evidence import RECORDS
+            fallback_records = [
+                serialize_static_record(idx + 1, r)
+                for idx, r in enumerate(RECORDS)
+                if r.get("model_class") == model_class
+            ]
+            if fallback_records:
+                return fallback_records
+        except Exception as static_err:
+            print(f"[WARNING] Static fallback error: {static_err}")
+
+    return records
 
 
 @router.get("/{model_class}")
@@ -121,26 +170,19 @@ async def get_recommendations(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    if model_class not in EXACT_MODEL_CLASSES:
+    resolved_class = model_class if model_class in EXACT_MODEL_CLASSES else model_class_for_name(model_class)
+    if not resolved_class:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Unknown EfficientNet model class",
+            detail="Unknown EfficientNet model class or disease name",
         )
 
-    result = await db.execute(
-        select(DiseaseRecommendation)
-        .where(
-            DiseaseRecommendation.model_class == model_class,
-            DiseaseRecommendation.is_active.is_(True),
-        )
-        .order_by(DiseaseRecommendation.id)
-    )
-    records = result.scalars().all()
-    display_name = records[0].display_name if records else model_class.split("___", 1)[-1].replace("_", " ")
+    recommendations = await get_evidence_recommendations(resolved_class, db)
+    display_name = resolved_class.split("___", 1)[-1].replace("_", " ")
 
     return {
-        "model_class": model_class,
+        "model_class": resolved_class,
         "display_name": display_name,
-        "recommendations": [serialize_recommendation(record) for record in records],
-        "message": None if records else "No verified recommendation is currently available in the database.",
+        "recommendations": recommendations,
+        "message": None if recommendations else "No verified recommendation is currently available in the database.",
     }
