@@ -93,15 +93,16 @@ async def lifespan(app: FastAPI):
                     except Exception:
                         pass
 
-        async with SessionLocal() as db:
-            result = await db.execute(select(User))
-            user = result.scalars().first()
-
-            if user is None:
-                print("Database empty. Running seed...")
-                await seed.seed_data()
-            else:
-                print("Database already initialized.")
+        # Run seed checks and evidence seeding
+        try:
+            await seed.seed_data()
+        except Exception as seed_err:
+            logger.warning(f"[STARTUP] seed_data warning: {seed_err}")
+            try:
+                from seed_evidence import seed_evidence
+                await seed_evidence()
+            except Exception as ev_err:
+                logger.warning(f"[STARTUP] seed_evidence warning: {ev_err}")
     except Exception as e:
         logger.error(f"[STARTUP ERROR] Database initialization failed: {e}", exc_info=True)
         print(f"[STARTUP ERROR] Database initialization failed: {e}")

@@ -4,7 +4,11 @@ from datetime import date
 from sqlalchemy import select
 
 from app.db.session import SessionLocal
-from app.models.evidence_recommendation import DiseaseRecommendation
+from app.models.evidence_recommendation import (
+    DiseaseRecommendation,
+    FertilizerRecommendation,
+    EvidenceSource,
+)
 
 
 RECORDS = [

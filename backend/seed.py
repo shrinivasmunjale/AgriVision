@@ -6,6 +6,7 @@ from app.models.disease import Disease
 from app.models.pesticide import Pesticide
 from app.models.fertilizer import Fertilizer
 from app.core.security import get_password_hash
+from seed_evidence import seed_evidence
 
 
 async def seed_data():
@@ -13,55 +14,51 @@ async def seed_data():
         print("[SEED] Seeding database...")
 
         # -----------------------------
-        # Skip if already seeded
+        # Test Users
         # -----------------------------
         result = await db.execute(select(User))
         existing_user = result.scalars().first()
 
-        if existing_user:
-            print("[SUCCESS] Database already seeded.")
-            return
+        if not existing_user:
+            farmer = User(
+                id="farmer-test-id",
+                name="Test Farmer",
+                email="farmer@test.com",
+                hashed_password=get_password_hash("password123"),
+                role="farmer",
+                farm_name="Test Farm",
+                phone="+911234567890",
+            )
 
-        # -----------------------------
-        # Test Users
-        # -----------------------------
-        farmer = User(
-            id="farmer-test-id",
-            name="Test Farmer",
-            email="farmer@test.com",
-            hashed_password=get_password_hash("password123"),
-            role="farmer",
-            farm_name="Test Farm",
-            phone="+911234567890",
-        )
+            admin = User(
+                id="admin-test-id",
+                name="Test Admin",
+                email="admin@test.com",
+                hashed_password=get_password_hash("password123"),
+                role="admin",
+                farm_name="AgriVision",
+                phone="+919876543210",
+            )
 
-        admin = User(
-            id="admin-test-id",
-            name="Test Admin",
-            email="admin@test.com",
-            hashed_password=get_password_hash("password123"),
-            role="admin",
-            farm_name="AgriVision",
-            phone="+919876543210",
-        )
+            expert = User(
+                id="expert-test-id",
+                name="Test Expert",
+                email="expert@test.com",
+                hashed_password=get_password_hash("password123"),
+                role="expert",
+                farm_name="AgriVision",
+                phone="+919876543211",
+            )
 
-        expert = User(
-            id="expert-test-id",
-            name="Test Expert",
-            email="expert@test.com",
-            hashed_password=get_password_hash("password123"),
-            role="expert",
-            farm_name="AgriVision",
-            phone="+919876543211",
-        )
+            db.add_all([farmer, admin, expert])
+            await db.commit()
 
-        db.add_all([farmer, admin, expert])
-        await db.commit()
-
-        print("[SUCCESS] Test users seeded successfully:")
-        print("   - farmer@test.com / password123")
-        print("   - admin@test.com / password123")
-        print("   - expert@test.com / password123")
+            print("[SUCCESS] Test users seeded successfully:")
+            print("   - farmer@test.com / password123")
+            print("   - admin@test.com / password123")
+            print("   - expert@test.com / password123")
+        else:
+            print("[INFO] Users already seeded.")
 
         # -----------------------------
         # Diseases
@@ -222,6 +219,11 @@ async def seed_data():
         db.add_all(fertilizers)
         await db.commit()
         print("[SUCCESS] Fertilizers seeded successfully")
+
+        # -----------------------------
+        # Seed Evidence Recommendations
+        # -----------------------------
+        await seed_evidence()
 
         print("[SUCCESS] Database seeding completed successfully.")
 

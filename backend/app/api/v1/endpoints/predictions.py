@@ -285,9 +285,16 @@ async def generate_batch_report(
         "valid_predictions": valid_predictions,
     }
 
+    evidence_by_disease: Dict[str, list] = {}
+    for disease_name in (request.disease_summary or {}).keys():
+        model_cls = model_class_for_name(disease_name)
+        ev = await get_evidence_recommendations(model_cls, db)
+        evidence_by_disease[disease_name] = ev
+
     pdf_buffer = pdf_generator.generate_batch_report(
         user_data=user_data,
-        batch_data=batch_data
+        batch_data=batch_data,
+        evidence_by_disease=evidence_by_disease,
     )
 
     return StreamingResponse(
@@ -544,31 +551,10 @@ async def generate_pdf_report(
             "severity_level": prediction.disease.severity_level
         }
     
-    recommendations_list = []
-    for rec in prediction.recommendations:
-        rec_data = {
-            "similarity_score": rec.similarity_score
-        }
-        
-        if rec.pesticide:
-            rec_data.update({
-                "pesticide_name": rec.pesticide.name,
-                "active_ingredient": rec.pesticide.active_ingredient,
-                "dosage": rec.pesticide.dosage,
-                "application_method": rec.pesticide.application_method
-            })
-        
-        if rec.fertilizer:
-            rec_data.update({
-                "fertilizer_name": rec.fertilizer.name,
-                "active_ingredient": rec.fertilizer.active_ingredient,
-                "dosage": rec.fertilizer.dosage,
-                "application_method": rec.fertilizer.application_method,
-                "suitable_life_stages": rec.fertilizer.suitable_life_stages
-            })
-        
-        recommendations_list.append(rec_data)
-    
+    disease_name = prediction.disease.name if prediction.disease else None
+    evidence = await get_evidence_recommendations(model_class_for_name(disease_name), db)
+    disease_details = recommendation_engine.get_disease_knowledge(disease_name)
+
     user_data = {
         "name": current_user.name,
         "email": current_user.email,
@@ -577,15 +563,18 @@ async def generate_pdf_report(
     
     prediction_data = {
         "confidence_score": prediction.confidence_score,
-        "created_at": prediction.created_at.strftime("%B %d, %Y %I:%M %p"),
-        "image_url": getattr(prediction, "image_url", None)
+        "created_at": prediction.created_at.strftime("%B %d, %Y %I:%M %p") if prediction.created_at else "N/A",
+        "image_url": getattr(prediction, "image_url", None),
+        "crop_age_days": getattr(prediction, "crop_age_days", None),
+        "life_stage": getattr(prediction, "life_stage", None),
     }
     
     pdf_buffer = pdf_generator.generate_report(
         prediction_data=prediction_data,
         user_data=user_data,
         disease_data=disease_data,
-        recommendations=recommendations_list
+        evidence_recommendations=evidence,
+        disease_details=disease_details,
     )
     
     report = Report(

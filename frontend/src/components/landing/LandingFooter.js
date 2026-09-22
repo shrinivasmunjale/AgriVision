@@ -18,6 +18,9 @@ export default function LandingFooter() {
           <p className="text-text-secondary text-sm">
             © {new Date().getFullYear()} AgriVision AI. Built for smarter farming.
           </p>
+          <p className="text-text-secondary text-sm">
+             Made By Shrinivas Munjale , Kishor Patil , Rajshri Rautray , Samiksha Raybole.
+          </p>
           <nav className="flex flex-wrap items-center justify-center sm:justify-start gap-4">
             {links.map((l) => (
               <a
