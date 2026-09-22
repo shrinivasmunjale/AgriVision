@@ -2,7 +2,7 @@
 
 import { useAuth } from '@/contexts/AuthContext'
 import { useRouter, useParams } from 'next/navigation'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { predictionsAPI } from '@/lib/api'
 import Layout from '@/components/Layout'
@@ -29,6 +29,7 @@ export default function PredictionDetailPage() {
   const router = useRouter()
   const params = useParams()
   const predictionId = params.id
+  const [downloading, setDownloading] = useState(false)
 
   useEffect(() => {
     if (!loading && !user) {
@@ -58,6 +59,8 @@ export default function PredictionDetailPage() {
   }
 
   const handleDownloadReport = async () => {
+    if (downloading) return
+    setDownloading(true)
     try {
       const token = await getAccessToken()
       const response = await predictionsAPI.downloadReport(predictionId, token)
@@ -70,6 +73,8 @@ export default function PredictionDetailPage() {
       link.remove()
     } catch (error) {
       console.error('Failed to download report:', error)
+    } finally {
+      setDownloading(false)
     }
   }
 
@@ -99,6 +104,7 @@ export default function PredictionDetailPage() {
   const isHealthy = prediction.disease_name === 'Healthy' || prediction.disease_name === 'Tomato Healthy'
   const lowConfidence = prediction.confidence_score < 0.6
   const details = prediction.disease_details
+  const evidenceRecommendations = details?.evidence_recommendations || []
   const pesticideRecommendations = (prediction.recommendations || []).filter((item) => item.pesticide_name)
   const fertilizerRecommendations = (prediction.recommendations || []).filter((item) => item.fertilizer_name)
 
@@ -135,10 +141,13 @@ export default function PredictionDetailPage() {
               </button>
               <button
                 onClick={handleDownloadReport}
-                className="flex items-center gap-2 px-5 py-2 bg-primary text-white rounded-full text-sm font-semibold hover:bg-primary-600 transition-all shadow-md active:scale-95"
+                disabled={downloading}
+                className="flex items-center gap-2 px-5 py-2 bg-primary text-white rounded-full text-sm font-semibold hover:bg-primary-600 transition-all shadow-md active:scale-95 disabled:cursor-wait disabled:opacity-70"
               >
-                <Download className="w-4 h-4" />
-                Download PDF Report
+                <Download className={`w-4 h-4 ${downloading ? 'animate-bounce' : ''}`} />
+                <span className={downloading ? 'animate-pulse' : ''}>
+                  {downloading ? 'Preparing PDF...' : 'Download PDF Report'}
+                </span>
               </button>
             </div>
           </div>
@@ -343,6 +352,70 @@ export default function PredictionDetailPage() {
             </div>
           )}
 
+          {evidenceRecommendations.length > 0 && (
+            <section className="bg-surface-card rounded-2xl p-6 border border-border-subtle shadow-sm">
+              <div className="flex items-center gap-2 mb-2 text-emerald-400 font-bold text-xl">
+                <ShieldCheck className="w-6 h-6" />
+                <h2>Evidence-Backed Treatment</h2>
+              </div>
+              <p className="text-sm text-text-secondary mb-5">
+                These are evidence-backed treatment references, not a claim of the universally best product.
+              </p>
+              <div className="space-y-4">
+                {evidenceRecommendations.map((recommendation) => {
+                  const source = recommendation.source || {}
+                  return (
+                    <article key={recommendation.id} className="p-5 bg-surface-base border border-border-subtle rounded-xl space-y-4">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <span className="text-xs font-semibold uppercase tracking-wider text-text-secondary">
+                            {recommendation.type || 'Disease management'}
+                          </span>
+                          <h3 className="text-lg font-semibold text-text-primary mt-1">
+                            {recommendation.active_ingredient || 'IPM / disease management'}
+                          </h3>
+                        </div>
+                        <span className="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-300 border border-emerald-500/30">
+                          {evidenceBadge(source.source_type)}
+                        </span>
+                      </div>
+                      <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                        {[
+                          ['Formulation', recommendation.formulation],
+                          ['Dose', [recommendation.dose, recommendation.dose_unit].filter(Boolean).join(' ')],
+                          ['Water volume', recommendation.water_volume],
+                          ['Application', recommendation.application_method],
+                          ['Crop stage', recommendation.crop_stage],
+                          ['Frequency', recommendation.frequency],
+                          ['Pre-harvest interval', recommendation.pre_harvest_interval],
+                          ['Re-entry period', recommendation.re_entry_period],
+                        ].filter(([, value]) => value).map(([label, value]) => (
+                          <div key={label}>
+                            <dt className="text-xs text-text-secondary mb-1">{label}</dt>
+                            <dd className="text-text-primary font-medium">{value}</dd>
+                          </div>
+                        ))}
+                      </dl>
+                      <div className="border-t border-border-subtle/50 pt-3 text-sm">
+                        <p className="font-semibold text-text-primary">{source.organization}</p>
+                        <p className="text-text-secondary">{source.document}</p>
+                        {source.evidence_note && <p className="mt-2 text-text-secondary">{source.evidence_note}</p>}
+                        {source.url && (
+                          <a href={source.url} target="_blank" rel="noreferrer" className="inline-flex mt-3 text-primary-400 hover:text-primary-300 font-semibold">
+                            View Official Reference
+                          </a>
+                        )}
+                      </div>
+                    </article>
+                  )
+                })}
+              </div>
+              <p className="mt-5 text-xs text-text-secondary border-t border-border-subtle/50 pt-4">
+                Recommendations are evidence-backed references. Always follow the current registered product label, local agricultural guidance, crop conditions, safety requirements and applicable regulations before application.
+              </p>
+            </section>
+          )}
+
           {/* Detailed Recommended Pesticides from tomato_disease_knowledge.json */}
           {details?.recommended_pesticides && details.recommended_pesticides.length > 0 && (
             <div className="bg-surface-card rounded-2xl p-6 border border-border-subtle shadow-sm">
@@ -495,4 +568,15 @@ function RecommendationCard({ recommendation, name, label, formatLifeStages }) {
       </dl>
     </article>
   )
+}
+
+function evidenceBadge(sourceType) {
+  if (!sourceType) return 'Evidence source'
+  if (sourceType.includes('Government Pesticide')) return 'Government Pesticide Label'
+  if (sourceType.includes('Government Agricultural')) return 'Government Agricultural Advisory'
+  if (sourceType.includes('ICAR')) return 'ICAR Research Source'
+  if (sourceType.includes('Agricultural University')) return 'Agricultural University Source'
+  if (sourceType.includes('International')) return 'International Agricultural Source'
+  if (sourceType.includes('IPM')) return 'IPM / Disease Management'
+  return sourceType
 }

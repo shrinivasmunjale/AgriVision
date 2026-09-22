@@ -7,6 +7,7 @@ import Link from 'next/link'
 import { useTheme } from '@/contexts/ThemeContext'
 import UserMenu from '@/components/UserMenu'
 import LanguageToggle from '@/components/ui/LanguageToggle'
+import ThemeToggle from '@/components/ui/ThemeToggle'
 import Chatbot from '@/components/Chatbot'
 import { useI18n } from '@/contexts/I18nContext'
 import { useMemo } from 'react'
@@ -33,7 +34,7 @@ export default function Layout({ children }) {
 
   const handleSignOut = async () => {
     await signOut()
-    router.push('/auth/login')
+    router.push('/')
   }
 
   const isAdmin = profile?.role === 'admin'
@@ -128,6 +129,7 @@ export default function Layout({ children }) {
         <header className="sticky top-0 z-30 bg-surface-base/80 backdrop-blur-xl border-b border-border-subtle px-4 lg:px-8 flex items-center justify-between h-16">
           <h1 className="text-lg font-bold text-text-primary truncate">{title}</h1>
           <div className="flex items-center gap-2">
+            <ThemeToggle className="lg:hidden" />
             <LanguageToggle />
             <UserMenu />
           </div>

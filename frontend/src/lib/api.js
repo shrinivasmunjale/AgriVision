@@ -142,6 +142,11 @@ export const predictionsAPI = {
     }),
 }
 
+export const recommendationsAPI = {
+  getByModelClass: (modelClass) =>
+    api.get(`/recommendations/${encodeURIComponent(modelClass)}`),
+}
+
 export const adminAPI = {
   getDiseases: (token) =>
     api.get('/admin/diseases', {

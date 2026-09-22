@@ -299,7 +299,7 @@ export const I18nProvider = ({ children }) => {
     loadGoogleTranslateScript()
   }, [])
 
-  const applyGoogleTranslateCookie = (l) => {
+  const applyGoogleTranslateCookie = (l, attempt = 0) => {
     if (typeof window === 'undefined') return
     try {
       const targetLang = l === 'en' ? '' : l
@@ -313,9 +313,14 @@ export const I18nProvider = ({ children }) => {
       // Dispatch change event to trigger Google Translate widget if loaded
       const select = document.querySelector('.goog-te-combo')
       if (select) {
-        select.value = l
-        select.dispatchEvent(new Event('change'))
-        select.dispatchEvent(new Event('input'))
+        const valueSetter = Object.getOwnPropertyDescriptor(
+          HTMLSelectElement.prototype,
+          'value'
+        )?.set
+        valueSetter?.call(select, targetLang)
+        select.dispatchEvent(new Event('change', { bubbles: true }))
+      } else if (attempt < 100) {
+        window.setTimeout(() => applyGoogleTranslateCookie(l, attempt + 1), 100)
       }
     } catch (e) {
       console.warn('Google Translate Cookie error:', e)
@@ -349,6 +354,7 @@ export const I18nProvider = ({ children }) => {
         },
         'google_translate_element'
       )
+      applyGoogleTranslateCookie(localStorage.getItem('agrivision_lang') || 'en')
     }
 
     const script = document.createElement('script')
@@ -363,11 +369,9 @@ export const I18nProvider = ({ children }) => {
     setLangState(l)
     localStorage.setItem('agrivision_lang', l)
     applyGoogleTranslateCookie(l)
-    
-    // Auto reload location so Google Translate translates the entire page instantly
-    setTimeout(() => {
-      window.location.reload()
-    }, 50)
+
+    // Google Translate applies its cookie during document initialization.
+    window.setTimeout(() => window.location.reload(), 50)
   }
 
   const t = (key) => {

@@ -24,6 +24,9 @@ export default function ScanPage() {
   const [compressProgress, setCompressProgress] = useState({ current: 0, total: 0 })
   const [uploading, setUploading] = useState(false)
   const [analyzing, setAnalyzing] = useState(false)
+  const [downloadingReport, setDownloadingReport] = useState(false)
+  const [cropAgeDays, setCropAgeDays] = useState('')
+  const [lifeStage, setLifeStage] = useState('')
   const [error, setError] = useState('')
   const [dragActive, setDragActive] = useState(false)
   const [results, setResults] = useState(null)
@@ -136,6 +139,8 @@ export default function ScanPage() {
         {
           image_urls: imageUrls,
           filenames: preparedFiles.map((f) => f.name || 'image'),
+          crop_age_days: cropAgeDays ? Number(cropAgeDays) : null,
+          life_stage: lifeStage || null,
         },
         token
       )
@@ -161,7 +166,8 @@ export default function ScanPage() {
   }
 
   const handleDownloadReport = async () => {
-    if (!results) return
+    if (!results || downloadingReport) return
+    setDownloadingReport(true)
     setError('')
     try {
       const token = await getAccessToken()
@@ -185,6 +191,8 @@ export default function ScanPage() {
       URL.revokeObjectURL(url)
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to download report')
+    } finally {
+      setDownloadingReport(false)
     }
   }
 
@@ -264,14 +272,40 @@ export default function ScanPage() {
               Capture with Camera
             </button>
           </div>
-
           {/* Selected Images Section */}
-          {previews.length > 0 && (
+          {files.length > 0 && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               className="mt-8"
             >
+              <div className="mb-6 grid grid-cols-1 gap-4 rounded-2xl border border-border-subtle bg-surface-card p-5 sm:grid-cols-2">
+                <label className="text-sm font-medium text-text-primary">
+                  Crop age (days)
+                  <input
+                    type="number"
+                    min="0"
+                    value={cropAgeDays}
+                    onChange={(event) => setCropAgeDays(event.target.value)}
+                    placeholder="Optional"
+                    className="mt-2 w-full rounded-xl border border-border-subtle bg-surface-base px-3 py-2 text-text-primary outline-none focus:border-primary-400"
+                  />
+                </label>
+                <label className="text-sm font-medium text-text-primary">
+                  Crop life stage
+                  <select
+                    value={lifeStage}
+                    onChange={(event) => setLifeStage(event.target.value)}
+                    className="mt-2 w-full rounded-xl border border-border-subtle bg-surface-base px-3 py-2 text-text-primary outline-none focus:border-primary-400"
+                  >
+                    <option value="">Auto-detect from age</option>
+                    <option value="Seedling">Seedling</option>
+                    <option value="Vegetative">Vegetative</option>
+                    <option value="Flowering">Flowering</option>
+                    <option value="Fruiting">Fruiting</option>
+                  </select>
+                </label>
+              </div>
               <h3 className="text-lg font-semibold text-text-primary mb-4">
                 Selected Images ({files.length})
               </h3>
@@ -367,9 +401,13 @@ export default function ScanPage() {
                 <div className="flex flex-wrap gap-3">
                   <button
                     onClick={handleDownloadReport}
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary-400 text-white font-semibold text-sm hover:bg-primary-500 transition-colors"
+                    disabled={downloadingReport}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary-400 text-white font-semibold text-sm hover:bg-primary-500 transition-colors disabled:cursor-wait disabled:opacity-70"
                   >
-                    <Download className="w-4 h-4" /> Download PDF Report
+                    <Download className={`w-4 h-4 ${downloadingReport ? 'animate-bounce' : ''}`} />
+                    <span className={downloadingReport ? 'animate-pulse' : ''}>
+                      {downloadingReport ? 'Preparing PDF...' : 'Download PDF Report'}
+                    </span>
                   </button>
                   <button
                     onClick={() => setResults(null)}

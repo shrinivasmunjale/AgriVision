@@ -29,8 +29,22 @@ from app.services.ml_inference import ml_service
 from app.services.recommendation import recommendation_engine
 from app.services.storage import storage_client
 from app.services.pdf_report import pdf_generator
+from app.api.v1.endpoints.recommendations import (
+    get_evidence_recommendations,
+    model_class_for_name,
+)
 
 router = APIRouter()
+
+
+async def get_prediction_details(disease_name: Optional[str], db: AsyncSession) -> Optional[dict]:
+    details = recommendation_engine.get_disease_knowledge(disease_name)
+    evidence = await get_evidence_recommendations(model_class_for_name(disease_name), db)
+    if not details and not evidence:
+        return None
+    merged = dict(details or {})
+    merged["evidence_recommendations"] = evidence
+    return merged
 
 @router.post("/upload")
 async def upload_images(
@@ -186,7 +200,7 @@ async def analyze_images(
             life_stage=prediction.life_stage,
             created_at=prediction.created_at,
             recommendations=recommendations_list,
-            disease_details=recommendation_engine.get_disease_knowledge(disease_name or ml_pred.get("disease_name"))
+            disease_details=await get_prediction_details(disease_name or ml_pred.get("disease_name"), db)
         ))
 
     await db.commit()
@@ -353,7 +367,7 @@ async def get_predictions(
             life_stage=getattr(pred, "life_stage", None),
             created_at=pred.created_at,
             recommendations=recommendations_list,
-            disease_details=recommendation_engine.get_disease_knowledge(disease_name)
+            disease_details=await get_prediction_details(disease_name, db)
         ))
     
     return response
@@ -485,7 +499,7 @@ async def get_prediction(
         life_stage=getattr(prediction, "life_stage", None),
         created_at=prediction.created_at,
         recommendations=recommendations_list,
-        disease_details=recommendation_engine.get_disease_knowledge(disease_name)
+        disease_details=await get_prediction_details(disease_name, db)
     )
 
 @router.get("/{prediction_id}/report")

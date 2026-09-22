@@ -37,7 +37,7 @@ function ProfileContent() {
 
   const handleSignOut = async () => {
     await signOut()
-    router.push('/auth/login')
+    router.push('/')
   }
 
   if (loading || !user || !profile) {
