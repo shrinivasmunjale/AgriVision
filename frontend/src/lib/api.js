@@ -147,6 +147,12 @@ export const recommendationsAPI = {
     api.get(`/recommendations/${encodeURIComponent(modelClass)}`),
 }
 
+export const fertilizerRecommendationsAPI = {
+  get: (params) =>
+    api.get('/fertilizer-recommendations', { params }),
+}
+
+
 export const adminAPI = {
   getDiseases: (token) =>
     api.get('/admin/diseases', {

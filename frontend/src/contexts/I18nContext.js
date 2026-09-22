@@ -410,7 +410,6 @@ export const I18nProvider = ({ children }) => {
 
   const setLang = (l) => {
     if (l === lang) return
-    const prevLang = lang
     setLangState(l)
     try {
       localStorage.setItem('agrivision_lang', l)
@@ -418,28 +417,11 @@ export const I18nProvider = ({ children }) => {
 
     setGoogleTranslateCookie(l)
 
-    const applied = triggerGoogleTranslateCombo(l)
-    if (!applied) {
-      let count = 0
-      const interval = setInterval(() => {
-        count++
-        if (triggerGoogleTranslateCombo(l) || count > 20) {
-          clearInterval(interval)
-          // If still couldn't find combo after 2 seconds or reverting to English, reload cleanly
-          if (count > 20 && (l === 'en' || prevLang !== 'en')) {
-            window.location.reload()
-          }
-        }
-      }, 100)
-    } else if (l === 'en' && prevLang !== 'en') {
-      // When reverting from a translated language to English, trigger reload if DOM doesn't revert
-      window.setTimeout(() => {
-        const hasTranslatedClass = document.documentElement.classList.contains('translated-ltr') ||
-          document.documentElement.classList.contains('translated-rtl')
-        if (hasTranslatedClass && document.querySelector('.goog-te-combo')?.value !== '') {
-          window.location.reload()
-        }
-      }, 300)
+    // Automatically refresh the page when language changes for a clean Google Translate reload
+    if (typeof window !== 'undefined') {
+      setTimeout(() => {
+        window.location.reload()
+      }, 50)
     }
   }
 

@@ -2,7 +2,7 @@
 
 import { useAuth } from '@/contexts/AuthContext'
 import { useRouter, usePathname } from 'next/navigation'
-import { Home, Camera, History, Settings, LogOut, BarChart3, Sun, Moon, HelpCircle, Lightbulb, MessageCircle } from 'lucide-react'
+import { Home, Camera, History, Settings, LogOut, BarChart3, Sun, Moon, HelpCircle, Lightbulb, MessageCircle, Leaf } from 'lucide-react'
 import Link from 'next/link'
 import { useTheme } from '@/contexts/ThemeContext'
 import UserMenu from '@/components/UserMenu'
@@ -16,6 +16,7 @@ const pageTitles = {
   '/dashboard': 'Dashboard',
   '/scan': 'Scan Plant Health',
   '/history': 'History',
+  '/fertilizer-advisor': 'Fertilizer Advisor',
   '/profile': 'Profile',
   '/admin': 'Admin',
 }
@@ -44,6 +45,7 @@ export default function Layout({ children }) {
     ...(isAdmin ? [] : [
       { icon: Camera, label: 'Scan', href: '/scan' },
       { icon: History, label: 'History', href: '/history' },
+      { icon: Leaf, label: 'Fertilizer Advisor', href: '/fertilizer-advisor' },
     ]),
     ...(isAdmin ? [{ icon: BarChart3, label: 'Admin', href: '/admin' }] : []),
     ...(isAdmin ? [] : [

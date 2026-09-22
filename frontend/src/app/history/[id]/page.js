@@ -23,6 +23,8 @@ import { motion } from 'framer-motion'
 import Link from 'next/link'
 
 import BoundingBoxImage from '@/components/BoundingBoxImage'
+import RecommendationCard from '@/components/RecommendationCard'
+
 
 export default function PredictionDetailPage() {
   const { user, loading, getAccessToken } = useAuth()
@@ -105,14 +107,7 @@ export default function PredictionDetailPage() {
   const lowConfidence = prediction.confidence_score < 0.6
   const details = prediction.disease_details
   const evidenceRecommendations = details?.evidence_recommendations || []
-  const pesticideRecommendations = (prediction.recommendations || []).filter((item) => item.pesticide_name)
-  const fertilizerRecommendations = (prediction.recommendations || []).filter((item) => item.fertilizer_name)
 
-  const formatLifeStages = (value) => {
-    if (!value) return null
-    if (Array.isArray(value)) return value.join(', ')
-    return String(value).replace(/[\[\]"]/g, '').split(',').map((stage) => stage.trim()).filter(Boolean).join(', ')
-  }
 
   return (
     <Layout>
@@ -359,56 +354,15 @@ export default function PredictionDetailPage() {
                 <h2>Evidence-Backed Treatment</h2>
               </div>
               <p className="text-sm text-text-secondary mb-5">
-                These are evidence-backed treatment references, not a claim of the universally best product.
+                These are authoritative, evidence-backed treatment references, not a claim of the universally best product.
               </p>
-              <div className="space-y-4">
-                {evidenceRecommendations.map((recommendation) => {
-                  const source = recommendation.source || {}
-                  return (
-                    <article key={recommendation.id} className="p-5 bg-surface-base border border-border-subtle rounded-xl space-y-4">
-                      <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div>
-                          <span className="text-xs font-semibold uppercase tracking-wider text-text-secondary">
-                            {recommendation.type || 'Disease management'}
-                          </span>
-                          <h3 className="text-lg font-semibold text-text-primary mt-1">
-                            {recommendation.active_ingredient || 'IPM / disease management'}
-                          </h3>
-                        </div>
-                        <span className="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-300 border border-emerald-500/30">
-                          {evidenceBadge(source.source_type)}
-                        </span>
-                      </div>
-                      <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-                        {[
-                          ['Formulation', recommendation.formulation],
-                          ['Dose', [recommendation.dose, recommendation.dose_unit].filter(Boolean).join(' ')],
-                          ['Water volume', recommendation.water_volume],
-                          ['Application', recommendation.application_method],
-                          ['Crop stage', recommendation.crop_stage],
-                          ['Frequency', recommendation.frequency],
-                          ['Pre-harvest interval', recommendation.pre_harvest_interval],
-                          ['Re-entry period', recommendation.re_entry_period],
-                        ].filter(([, value]) => value).map(([label, value]) => (
-                          <div key={label}>
-                            <dt className="text-xs text-text-secondary mb-1">{label}</dt>
-                            <dd className="text-text-primary font-medium">{value}</dd>
-                          </div>
-                        ))}
-                      </dl>
-                      <div className="border-t border-border-subtle/50 pt-3 text-sm">
-                        <p className="font-semibold text-text-primary">{source.organization}</p>
-                        <p className="text-text-secondary">{source.document}</p>
-                        {source.evidence_note && <p className="mt-2 text-text-secondary">{source.evidence_note}</p>}
-                        {source.url && (
-                          <a href={source.url} target="_blank" rel="noreferrer" className="inline-flex mt-3 text-primary-400 hover:text-primary-300 font-semibold">
-                            View Official Reference
-                          </a>
-                        )}
-                      </div>
-                    </article>
-                  )
-                })}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {evidenceRecommendations.map((recommendation) => (
+                  <RecommendationCard
+                    key={recommendation.id}
+                    recommendation={recommendation}
+                  />
+                ))}
               </div>
               <p className="mt-5 text-xs text-text-secondary border-t border-border-subtle/50 pt-4">
                 Recommendations are evidence-backed references. Always follow the current registered product label, local agricultural guidance, crop conditions, safety requirements and applicable regulations before application.
@@ -416,167 +370,30 @@ export default function PredictionDetailPage() {
             </section>
           )}
 
-          {/* Detailed Recommended Pesticides from tomato_disease_knowledge.json */}
-          {details?.recommended_pesticides && details.recommended_pesticides.length > 0 && (
-            <div className="bg-surface-card rounded-2xl p-6 border border-border-subtle shadow-sm">
-              <div className="flex items-center gap-2 mb-4 text-primary-400 font-bold text-xl">
-                <Pill className="w-6 h-6" />
-                <h2>Recommended Chemical Treatment & Dosages</h2>
-              </div>
-              <div className="space-y-4">
-                {details.recommended_pesticides.map((pest, idx) => (
-                  <div key={idx} className="p-5 bg-surface-base border border-border-subtle rounded-xl space-y-3">
-                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border-subtle/50 pb-3">
-                      <h3 className="text-lg font-semibold text-text-primary">
-                        {pest.name}
-                      </h3>
-                      {pest.application_method && (
-                        <span className="px-3 py-1 bg-primary/10 text-primary-400 rounded-full text-xs font-medium border border-primary/20">
-                          {pest.application_method}
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-                      {pest.dosage && (
-                        <div>
-                          <strong className="text-text-secondary block text-xs">Recommended Dosage:</strong>
-                          <span className="text-text-primary font-medium">{pest.dosage}</span>
-                        </div>
-                      )}
-                      {pest.frequency && (
-                        <div>
-                          <strong className="text-text-secondary block text-xs">Application Frequency:</strong>
-                          <span className="text-text-primary font-medium">{pest.frequency}</span>
-                        </div>
-                      )}
-                    </div>
-
-                    {pest.how_to_use && pest.how_to_use.length > 0 && (
-                      <div className="pt-2">
-                        <strong className="text-text-secondary block text-xs mb-1">How to Use:</strong>
-                        <ul className="list-disc list-inside space-y-1 text-sm text-text-primary pl-1">
-                          {pest.how_to_use.map((step, sIdx) => (
-                            <li key={sIdx}>{step}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-
-                    {pest.precautions && pest.precautions.length > 0 && (
-                      <div className="pt-2">
-                        <strong className="text-amber-400/90 block text-xs mb-1 font-semibold">Safety Precautions:</strong>
-                        <ul className="list-disc list-inside space-y-1 text-xs text-text-secondary pl-1">
-                          {pest.precautions.map((prec, pIdx) => (
-                            <li key={pIdx}>{prec}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Nutrient recommendations from the disease treatment plan */}
-          {details?.recommended_fertilizers && details.recommended_fertilizers.length > 0 && (
-            <div className="bg-surface-card rounded-2xl p-6 border border-border-subtle shadow-sm">
-              <div className="flex items-center gap-2 mb-4 text-emerald-400 font-bold text-xl">
+          {/* Advisor Link Banner */}
+          <div className="bg-gradient-to-r from-emerald-500/10 via-primary/10 to-teal-500/10 border border-emerald-500/20 rounded-2xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-emerald-500/20 rounded-xl text-emerald-400">
                 <Leaf className="w-6 h-6" />
-                <h2>Recommended Fertilizers & Recovery Nutrition</h2>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {details.recommended_fertilizers.map((fertilizer, idx) => (
-                  <div key={idx} className="p-5 bg-surface-base border border-border-subtle rounded-xl space-y-3">
-                    <h3 className="text-lg font-semibold text-text-primary">{fertilizer.name}</h3>
-                    {fertilizer.purpose && <p className="text-sm text-text-secondary">{fertilizer.purpose}</p>}
-                    <div className="grid grid-cols-1 gap-3 text-sm border-t border-border-subtle/50 pt-3">
-                      {fertilizer.dosage && <div><strong className="text-text-secondary block text-xs">Recommended Dosage</strong><span className="text-text-primary font-medium">{fertilizer.dosage}</span></div>}
-                      {fertilizer.application_method && <div><strong className="text-text-secondary block text-xs">Application Method</strong><span className="text-text-primary font-medium">{fertilizer.application_method}</span></div>}
-                    </div>
-                  </div>
-                ))}
+              <div>
+                <h3 className="text-base font-bold text-text-primary">Need Tomato Crop Nutrition & Fertilizer Guidance?</h3>
+                <p className="text-xs text-text-secondary mt-0.5">
+                  Access evidence-backed MPKV Rahuri fertilizer schedules tailored for Hybrid and Improved tomato varieties.
+                </p>
               </div>
             </div>
-          )}
-
-          {/* Saved input recommendations: the same source used by the PDF report. */}
-          {!isHealthy && (pesticideRecommendations.length > 0 || fertilizerRecommendations.length > 0) && (
-            <div className="bg-surface-card rounded-2xl p-6 border border-border-subtle shadow-sm">
-              <div className="flex items-center gap-2 mb-2 text-primary-400 font-bold text-xl">
-                <Pill className="w-6 h-6" />
-                <h2>Selected Recommendations</h2>
-              </div>
-              <p className="text-sm text-text-secondary mb-5">Product details, dosage, and application guidance for this scan.</p>
-
-              {pesticideRecommendations.length > 0 && (
-                <div className="mb-6">
-                  <h3 className="text-base font-semibold text-text-primary mb-3">Pesticides</h3>
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                    {pesticideRecommendations.map((rec) => (
-                      <RecommendationCard key={rec.id} recommendation={rec} name={rec.pesticide_name} label="Pesticide" formatLifeStages={formatLifeStages} />
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {fertilizerRecommendations.length > 0 && (
-                <div>
-                  <h3 className="text-base font-semibold text-text-primary mb-3">Fertilizers</h3>
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                    {fertilizerRecommendations.map((rec) => (
-                      <RecommendationCard key={rec.id} recommendation={rec} name={rec.fertilizer_name} label="Fertilizer" formatLifeStages={formatLifeStages} />
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
+            <Link
+              href="/fertilizer-advisor"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex-shrink-0"
+            >
+              <span>Open Fertilizer Advisor</span>
+              <Sparkles className="w-3.5 h-3.5" />
+            </Link>
+          </div>
         </motion.div>
       </div>
     </Layout>
   )
 }
 
-function RecommendationCard({ recommendation, name, label, formatLifeStages }) {
-  const fields = [
-    ['Active Ingredient', recommendation.active_ingredient],
-    ['Recommended Dosage', recommendation.dosage],
-    ['Application Method', recommendation.application_method],
-    ['Suitable Life Stages', formatLifeStages(recommendation.suitable_life_stages)],
-  ].filter(([, value]) => value)
-
-  return (
-    <article className="p-5 bg-surface-base border border-border-subtle rounded-xl">
-      <div className="flex items-start justify-between gap-3 border-b border-border-subtle/50 pb-3 mb-4">
-        <div>
-          <span className="text-xs font-semibold uppercase tracking-wider text-text-secondary">{label}</span>
-          <h4 className="text-lg font-semibold text-text-primary mt-1">{name}</h4>
-        </div>
-        <span className="shrink-0 px-3 py-1 bg-primary/10 text-primary-400 rounded-full text-xs font-semibold border border-primary/20">
-          Match {Math.round((recommendation.similarity_score || 0) * 100)}%
-        </span>
-      </div>
-      <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-5 gap-y-4 text-sm">
-        {fields.map(([field, value]) => (
-          <div key={field}>
-            <dt className="text-xs text-text-secondary mb-1">{field}</dt>
-            <dd className="text-text-primary font-medium">{value}</dd>
-          </div>
-        ))}
-      </dl>
-    </article>
-  )
-}
-
-function evidenceBadge(sourceType) {
-  if (!sourceType) return 'Evidence source'
-  if (sourceType.includes('Government Pesticide')) return 'Government Pesticide Label'
-  if (sourceType.includes('Government Agricultural')) return 'Government Agricultural Advisory'
-  if (sourceType.includes('ICAR')) return 'ICAR Research Source'
-  if (sourceType.includes('Agricultural University')) return 'Agricultural University Source'
-  if (sourceType.includes('International')) return 'International Agricultural Source'
-  if (sourceType.includes('IPM')) return 'IPM / Disease Management'
-  return sourceType
-}

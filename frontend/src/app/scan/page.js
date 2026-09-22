@@ -7,11 +7,13 @@ import { useQueryClient } from '@tanstack/react-query'
 import { predictionsAPI } from '@/lib/api'
 import { compressImages } from '@/lib/imageCompressor'
 import Layout from '@/components/Layout'
-import { Upload, X, Loader, AlertTriangle, Camera as CameraIcon, Sparkles, Leaf, Download, ExternalLink } from 'lucide-react'
+import { Upload, X, Loader, AlertTriangle, Camera as CameraIcon, Sparkles, Leaf, Download, ExternalLink, ShieldCheck } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useI18n } from '@/contexts/I18nContext'
 import Link from 'next/link'
 import BoundingBoxImage from '@/components/BoundingBoxImage'
+import RecommendationCard from '@/components/RecommendationCard'
+
 
 export default function ScanPage() {
   const { user, loading, getAccessToken } = useAuth()
@@ -533,7 +535,51 @@ export default function ScanPage() {
                 </div>
               )}
 
-              {/* Ignored Images */}
+              {/* Evidence-Backed Recommendations Section */}
+              {(() => {
+                const validList = results.valid_predictions || results.predictions || []
+                const allEvidence = []
+                const seenRecIds = new Set()
+
+                validList.forEach((pred) => {
+                  const recs = pred.disease_details?.evidence_recommendations || []
+                  recs.forEach((rec) => {
+                    const key = `${rec.id || ''}-${rec.active_ingredient || ''}-${rec.source?.url || ''}`
+                    if (!seenRecIds.has(key)) {
+                      seenRecIds.add(key)
+                      allEvidence.push(rec)
+                    }
+                  })
+                })
+
+                if (allEvidence.length === 0) return null
+
+                return (
+                  <div className="mb-6 pt-6 border-t border-border-subtle/70">
+                    <div className="flex items-center gap-2 mb-2 text-emerald-400 font-bold text-xl">
+                      <ShieldCheck className="w-6 h-6" />
+                      <h3>Evidence-Backed Treatment & Management</h3>
+                    </div>
+                    <p className="text-sm text-text-secondary mb-4">
+                      Authoritative pesticide, IPM, and crop management references from Government agencies, ICAR, and Agricultural Universities.
+                    </p>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {allEvidence.map((rec, i) => (
+                        <RecommendationCard
+                          key={rec.id || i}
+                          recommendation={rec}
+                        />
+                      ))}
+                    </div>
+
+                    <p className="mt-4 text-xs text-text-secondary border-t border-border-subtle/50 pt-3">
+                      Recommendations are evidence-backed references. Always follow the current registered product label, local agricultural guidance, crop conditions, safety requirements and applicable regulations before application.
+                    </p>
+                  </div>
+                )
+              })()}
+
               {results.ignored_images && results.ignored_images.length > 0 && (
                 <div>
                   <h3 className="text-lg font-semibold text-text-primary mb-4">Ignored Images</h3>

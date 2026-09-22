@@ -8,4 +8,5 @@ from app.models.recommendation import Recommendation
 from app.models.report import Report
 from app.models.audit_log import AuditLog
 from app.models.contact import ContactMessage
-from app.models.evidence_recommendation import DiseaseRecommendation, FertilizerRecommendation
+from app.models.evidence_recommendation import DiseaseRecommendation, FertilizerRecommendation, EvidenceSource
+

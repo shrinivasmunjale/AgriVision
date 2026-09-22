@@ -24,24 +24,56 @@ EXACT_MODEL_CLASSES = {
 
 MODEL_CLASS_BY_NAME = {
     "bacterial spot": "Tomato___Bacterial_spot",
+    "tomato bacterial spot": "Tomato___Bacterial_spot",
     "early blight": "Tomato___Early_blight",
+    "tomato early blight": "Tomato___Early_blight",
     "late blight": "Tomato___Late_blight",
+    "tomato late blight": "Tomato___Late_blight",
     "leaf mold": "Tomato___Leaf_Mold",
+    "tomato leaf mold": "Tomato___Leaf_Mold",
     "septoria leaf spot": "Tomato___Septoria_leaf_spot",
+    "tomato septoria leaf spot": "Tomato___Septoria_leaf_spot",
+    "spider mites": "Tomato___Spider_mites Two-spotted_spider_mite",
     "spider mites (two-spotted)": "Tomato___Spider_mites Two-spotted_spider_mite",
+    "spider mites two-spotted spider mite": "Tomato___Spider_mites Two-spotted_spider_mite",
     "two-spotted spider mite": "Tomato___Spider_mites Two-spotted_spider_mite",
+    "two spotted spider mite": "Tomato___Spider_mites Two-spotted_spider_mite",
+    "tomato spider mites": "Tomato___Spider_mites Two-spotted_spider_mite",
+    "tomato spider mites (two-spotted)": "Tomato___Spider_mites Two-spotted_spider_mite",
+    "tomato spider mites two-spotted spider mite": "Tomato___Spider_mites Two-spotted_spider_mite",
     "target spot": "Tomato___Target_Spot",
+    "tomato target spot": "Tomato___Target_Spot",
     "tomato yellow leaf curl virus": "Tomato___Tomato_Yellow_Leaf_Curl_Virus",
+    "tomato tomato yellow leaf curl virus": "Tomato___Tomato_Yellow_Leaf_Curl_Virus",
+    "yellow leaf curl virus": "Tomato___Tomato_Yellow_Leaf_Curl_Virus",
+    "tylcv": "Tomato___Tomato_Yellow_Leaf_Curl_Virus",
     "tomato mosaic virus": "Tomato___Tomato_mosaic_virus",
+    "tomato tomato mosaic virus": "Tomato___Tomato_mosaic_virus",
+    "tomv": "Tomato___Tomato_mosaic_virus",
+    "mosaic virus": "Tomato___Tomato_mosaic_virus",
     "healthy": "Tomato___healthy",
+    "tomato healthy": "Tomato___healthy",
 }
 
 
 def model_class_for_name(disease_name: str | None) -> str | None:
     if not disease_name:
         return None
+    if disease_name in EXACT_MODEL_CLASSES:
+        return disease_name
     normalized = disease_name.lower().replace("tomato___", "").replace("_", " ").strip()
-    return MODEL_CLASS_BY_NAME.get(normalized)
+    if normalized in MODEL_CLASS_BY_NAME:
+        return MODEL_CLASS_BY_NAME[normalized]
+    # Remove leading 'tomato ' if present
+    if normalized.startswith("tomato "):
+        trimmed = normalized[7:].strip()
+        if trimmed in MODEL_CLASS_BY_NAME:
+            return MODEL_CLASS_BY_NAME[trimmed]
+    # Try partial matching across keys
+    for key, model_cls in MODEL_CLASS_BY_NAME.items():
+        if key in normalized or normalized in key:
+            return model_cls
+    return None
 
 
 def serialize_recommendation(record: DiseaseRecommendation) -> dict:
